@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Analytics } from "@vercel/analytics/react";
 import ResumeEditor from "./ResumeEditor";
 import ProfilePage, { EMPTY_PROFILE } from "./ProfilePage";
 import QuickApply from "./QuickApply";
@@ -351,6 +352,7 @@ export default function App() {
           {active === "linkedin"  && <LinkedInOptimizer profile={profile} />}
         </div>
       </div>
+      <Analytics />
     </div>
   );
 }
