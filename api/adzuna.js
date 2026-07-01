@@ -7,18 +7,47 @@ export default async function handler(req, res) {
 
   const { keyword = "", location = "", remote = "any", page = "1" } = req.query;
 
-  // Adzuna country code: Germany = "de"
+  // Always search Germany — this is a Germany-focused job platform for English speakers
   const country = "de";
+
+  // Build the keyword query:
+  // We always inject English-language signals so results skew toward English-speaking roles.
+  // Common patterns: "english", "international", or roles in tech/finance/startups
+  // that are predominantly English-language in Germany.
+  const englishSignal = "english";
+  const baseKeyword = keyword.trim();
+
+  // "what_or" = any of these words appear in the listing (broad match)
+  // "what" = all words must appear (strict match — too restrictive for english filter)
+  // Strategy: use "what" for the user's keyword, "what_or" to bias toward english roles
   const params = new URLSearchParams({
     app_id: appId,
     app_key: appKey,
     results_per_page: "20",
-    what: keyword,
-    where: location,
+    what: baseKeyword || englishSignal,      // user keyword, fallback to "english"
+    where: location || "Germany",            // default to all of Germany if blank
     content_type: "application/json",
+    sort_by: "relevance",
   });
 
-  if (remote === "remote") params.set("what_phrase", `${keyword} remote`.trim());
+  // If user typed a keyword, add english as a secondary phrase filter
+  // so we get roles where the listing itself mentions "english"
+  if (baseKeyword) {
+    params.set("what_and", baseKeyword);     // all words in keyword must appear
+    params.set("what", baseKeyword);
+    // Add "english" as an OR term to surface English-friendly listings higher
+    params.set("what_or", `${baseKeyword} english international`);
+  }
+
+  // Remote filter: append to keyword phrase
+  if (remote === "remote") {
+    const current = params.get("what_or") || "";
+    params.set("what_or", `${current} remote`.trim());
+  }
+  if (remote === "hybrid") {
+    const current = params.get("what_or") || "";
+    params.set("what_or", `${current} hybrid`.trim());
+  }
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params.toString()}`;
 
@@ -41,6 +70,8 @@ export default async function handler(req, res) {
       url: j.redirect_url,
       created: j.created,
       contractType: j.contract_type || null,
+      // Flag if listing explicitly mentions English — used by the frontend to show a badge
+      englishFriendly: !!(j.description || "").toLowerCase().match(/\benglish\b|\binternational\b|\benglish.speaking\b/),
     }));
 
     res.status(200).json({ jobs, count: data.count || jobs.length });
