@@ -51,7 +51,7 @@ const CVDocument = ({ cvText, name, contact }) => {
   if (current) sections.push(current);
 
   return (
-    <div style={{ background: C.white, padding: "36px 40px", fontFamily: "Georgia, serif", fontSize: 12, lineHeight: 1.6, color: "#1a1a1a", minHeight: 500 }}>
+    <div style={{ background: C.white, padding: "20mm 18mm", fontFamily: "Georgia, serif", fontSize: 11.5, lineHeight: 1.6, color: "#1a1a1a" }}>
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: 16, borderBottom: "2px solid #1E293B", paddingBottom: 12 }}>
         <div style={{ fontSize: 20, fontWeight: 700, color: "#0F1F3D", letterSpacing: "-0.01em" }}>{name || "Your Name"}</div>
@@ -91,7 +91,7 @@ const CVDocument = ({ cvText, name, contact }) => {
 const CoverLetterDocument = ({ text }) => {
   const paragraphs = text.split("\n").filter(l => l.trim());
   return (
-    <div style={{ background: C.white, padding: "36px 40px", fontFamily: "Georgia, serif", fontSize: 12.5, lineHeight: 1.75, color: "#1a1a1a", minHeight: 500 }}>
+    <div style={{ background: C.white, padding: "20mm 18mm", fontFamily: "Georgia, serif", fontSize: 12.5, lineHeight: 1.75, color: "#1a1a1a" }}>
       {paragraphs.map((para, i) => {
         const isHeader = i < 4 && !para.startsWith("Dear") && !para.match(/^[A-Z][a-z]/);
         const isGreeting = para.startsWith("Dear");
@@ -134,8 +134,10 @@ const printDoc = (elementId) => {
   win.document.write(`
     <html><head><title>JobMate Document</title>
     <style>
-      body { margin: 0; padding: 0; font-family: Georgia, serif; }
-      @media print { body { -webkit-print-color-adjust: exact; } }
+      @page { margin: 0; size: A4; }
+      @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
+      html, body { margin: 0; padding: 0; height: auto !important; font-family: Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; overflow: hidden; }
+      * { box-sizing: border-box; }
     </style></head>
     <body>${el.innerHTML}</body></html>
   `);
@@ -168,7 +170,7 @@ const STEPS = [
   { key: "cover", label: "Writing cover letter...", icon: "✉️" },
 ];
 
-export default function QuickApply({ profile, onGoToResume, prefillJob }) {
+export default function QuickApply({ profile, profiles = [], activeProfileId, onGoToResume, prefillJob }) {
   const [url, setUrl] = useState(prefillJob?.url || "");
   const [jobText, setJobText] = useState(prefillJob?.description || "");
   const [inputMode, setInputMode] = useState(prefillJob?.description ? "paste" : "url");
@@ -177,7 +179,11 @@ export default function QuickApply({ profile, onGoToResume, prefillJob }) {
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
-  const profileSummary = profileSummaryText(profile);
+  // Profile selector — defaults to the active profile, can be overridden per-generation
+  const [selectedProfileId, setSelectedProfileId] = useState(activeProfileId || "");
+  const selectedProfile = profiles.find(p => p.id === selectedProfileId)?.data || profile;
+
+  const profileSummary = profileSummaryText(selectedProfile);
 
   const run = async () => {
     const input = inputMode === "url" ? url.trim() : jobText.trim();
@@ -191,7 +197,7 @@ export default function QuickApply({ profile, onGoToResume, prefillJob }) {
       );
 
       setCurrentStep("scoring");
-      const scoreData = await scoreJobMatch(profile, jd);
+      const scoreData = await scoreJobMatch(selectedProfile, jd);
 
       setCurrentStep("cv");
       const tailoredCV = await callClaude(
@@ -218,8 +224,8 @@ Output only the letter text.`,
     setLoading(false); setCurrentStep(null);
   };
 
-  const contactLine = profile?.name
-    ? [profile.email, profile.phone, profile.linkedin, profile.location].filter(Boolean).join(" | ")
+  const contactLine = selectedProfile?.name
+    ? [selectedProfile.email, selectedProfile.phone, selectedProfile.linkedin, selectedProfile.location].filter(Boolean).join(" | ")
     : "";
 
   return (
@@ -237,9 +243,25 @@ Output only the letter text.`,
             </div>
           </div>
 
-          <div style={{ background: profile?.name ? C.greenLight : C.amberLight, border: `0.5px solid ${profile?.name ? C.greenBorder : C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: profile?.name ? C.green : C.amber }}>
-            {profile?.name ? `✅ Using your profile — ${profile.name}` : "⚠️ Fill in My Profile first for best results"}
-          </div>
+          {/* Profile selector — show dropdown if multiple profiles exist, banner if only one */}
+          {profiles.length > 1 ? (
+            <div style={{ background: C.gray50, border: `0.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 13, color: C.gray600, fontWeight: 500, flexShrink: 0 }}>Using profile:</span>
+              <select value={selectedProfileId} onChange={e => setSelectedProfileId(e.target.value)}
+                style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: `0.5px solid ${C.gray200}`, fontSize: 13, color: C.gray800, background: C.white, fontFamily: FONT, outline: "none" }}>
+                {profiles.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}{p.id === activeProfileId ? " (active)" : ""}</option>
+                ))}
+              </select>
+              {selectedProfile?.name && (
+                <span style={{ fontSize: 12, color: C.green, fontWeight: 500, flexShrink: 0 }}>✅ {selectedProfile.name}</span>
+              )}
+            </div>
+          ) : (
+            <div style={{ background: selectedProfile?.name ? C.greenLight : C.amberLight, border: `0.5px solid ${selectedProfile?.name ? C.greenBorder : C.amberBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: selectedProfile?.name ? C.green : C.amber }}>
+              {selectedProfile?.name ? `✅ Using your profile — ${selectedProfile.name}` : "⚠️ Fill in My Profile first for best results"}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             {["url", "paste"].map(m => (
@@ -384,7 +406,7 @@ Output only the letter text.`,
                 </button>
               )}
               <button onClick={() => {
-                if (onGoToResume) onGoToResume(result.tailoredCV, profile);
+                if (onGoToResume) onGoToResume(result.tailoredCV, selectedProfile);
               }}
                 style={{ padding: "10px 18px", borderRadius: 8, background: "rgba(255,255,255,0.12)", color: C.white, border: "1px solid rgba(255,255,255,0.25)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: 6 }}>
                 ✏️ Edit in Resume Editor

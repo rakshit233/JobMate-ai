@@ -10,6 +10,7 @@ const C = {
   gray50: "#F8FAFC",
   gray100: "#F1F5F9",
   gray200: "#E2E8F0",
+  gray300: "#CBD5E1",
   gray400: "#94A3B8",
   gray600: "#475569",
   gray800: "#1E293B",
@@ -96,7 +97,7 @@ export const EMPTY_PROFILE = {
   certifications: [],
 };
 
-export default function ProfilePage({ profile, setProfile }) {
+export default function ProfilePage({ profiles = [], activeProfileId, profile, setProfile, onSwitch, onAdd, onRename, onDelete }) {
   const [uploading, setUploading] = useState(false);
   const [uploadDone, setUploadDone] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -104,6 +105,10 @@ export default function ProfilePage({ profile, setProfile }) {
   const [langInput, setLangInput] = useState("");
   const [certInput, setCertInput] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [newProfileName, setNewProfileName] = useState("");
+  const [showNewInput, setShowNewInput] = useState(false);
   const fileRef = useRef();
 
   // ── PDF reading & AI parsing ─────────────────────────────────
@@ -243,6 +248,8 @@ export default function ProfilePage({ profile, setProfile }) {
   };
 
   const handleSave = () => {
+    // Trigger App.js to persist via setActiveProfileData (called on every field change already)
+    // localStorage write happens inside saveProfiles in App.js — nothing extra needed here.
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   };
@@ -252,6 +259,73 @@ export default function ProfilePage({ profile, setProfile }) {
   return (
     <div style={{ maxWidth: 800, margin: "0 auto" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── Profile switcher ── */}
+      <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "14px 20px", marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.gray600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Profile:</span>
+
+          {/* Profile tabs */}
+          {profiles.map(p => (
+            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+              {renamingId === p.id ? (
+                <span style={{ display: "flex", gap: 4 }}>
+                  <input value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus
+                    style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.accent}`, fontSize: 12.5, fontFamily: FONT, width: 120 }}
+                    onKeyDown={e => { if (e.key === "Enter") { onRename(p.id, renameValue); setRenamingId(null); } if (e.key === "Escape") setRenamingId(null); }} />
+                  <button onClick={() => { onRename(p.id, renameValue); setRenamingId(null); }}
+                    style={{ padding: "4px 8px", borderRadius: 6, background: C.accent, color: C.white, border: "none", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>✓</button>
+                </span>
+              ) : (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 3 }}>
+                  <button onClick={() => onSwitch(p.id)}
+                    style={{ padding: "5px 14px", borderRadius: 99, fontSize: 12.5, fontWeight: p.id === activeProfileId ? 600 : 400, cursor: "pointer", border: `1.5px solid ${p.id === activeProfileId ? C.accent : C.gray200}`, background: p.id === activeProfileId ? C.accentLight : C.gray50, color: p.id === activeProfileId ? C.accent : C.gray600, fontFamily: FONT }}>
+                    {p.name}
+                  </button>
+                  {p.id === activeProfileId && (
+                    <>
+                      <button onClick={() => { setRenamingId(p.id); setRenameValue(p.name); }}
+                        style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.gray400, padding: "0 2px", fontFamily: FONT }} title="Rename">✏️</button>
+                      {profiles.length > 1 && (
+                        <button onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) onDelete(p.id); }}
+                          style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: C.gray400, padding: "0 2px", fontFamily: FONT }} title="Delete">✕</button>
+                      )}
+                    </>
+                  )}
+                </span>
+              )}
+            </div>
+          ))}
+
+          {/* Add new profile */}
+          {profiles.length < 4 && (
+            showNewInput ? (
+              <span style={{ display: "flex", gap: 4 }}>
+                <input value={newProfileName} onChange={e => setNewProfileName(e.target.value)} placeholder="e.g. PM roles" autoFocus
+                  style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${C.accent}`, fontSize: 12.5, fontFamily: FONT, width: 110 }}
+                  onKeyDown={e => { if (e.key === "Enter" && newProfileName.trim()) { onAdd(newProfileName.trim()); setNewProfileName(""); setShowNewInput(false); } if (e.key === "Escape") setShowNewInput(false); }} />
+                <button onClick={() => { if (newProfileName.trim()) { onAdd(newProfileName.trim()); setNewProfileName(""); setShowNewInput(false); } }}
+                  style={{ padding: "4px 8px", borderRadius: 6, background: C.accent, color: C.white, border: "none", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Add</button>
+                <button onClick={() => setShowNewInput(false)}
+                  style={{ padding: "4px 8px", borderRadius: 6, background: C.gray100, color: C.gray600, border: "none", fontSize: 12, cursor: "pointer", fontFamily: FONT }}>Cancel</button>
+              </span>
+            ) : (
+              <button onClick={() => setShowNewInput(true)}
+                style={{ padding: "5px 12px", borderRadius: 99, fontSize: 12, fontWeight: 500, cursor: "pointer", border: `1.5px dashed ${C.gray300}`, background: "transparent", color: C.gray600, fontFamily: FONT }}>
+                + New profile
+              </button>
+            )
+          )}
+
+          {profiles.length >= 4 && (
+            <span style={{ fontSize: 11, color: C.gray400 }}>Max 4 profiles reached</span>
+          )}
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: 11, color: C.gray400 }}>
+          Each profile has its own CV, experience and skills — switching profiles updates the Resume Editor automatically.
+        </div>
+      </div>
 
       {/* Upload zone */}
       <Card style={{ marginBottom: 20, background: dragOver ? C.accentLight : C.white }}>

@@ -331,7 +331,67 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [active, setActive] = useState("apply");
-  const [profile, setProfile] = useState(EMPTY_PROFILE);
+  // ── Multi-profile state (up to 4 named profiles) ─────────────
+  const [profiles, setProfiles] = useState(() => {
+    try {
+      const saved = localStorage.getItem("jobmate_profiles");
+      if (saved) return JSON.parse(saved);
+      // Migrate from old single-profile storage
+      const legacy = localStorage.getItem("jobmate_profile");
+      if (legacy) {
+        const legacyProfile = JSON.parse(legacy);
+        return [{ id: "1", name: "Default", data: legacyProfile }];
+      }
+    } catch {}
+    return [{ id: "1", name: "Default", data: EMPTY_PROFILE }];
+  });
+  const [activeProfileId, setActiveProfileId] = useState(() => {
+    try { return localStorage.getItem("jobmate_active_profile_id") || "1"; } catch { return "1"; }
+  });
+
+  const activeProfile = profiles.find(p => p.id === activeProfileId)?.data || EMPTY_PROFILE;
+
+  const saveProfiles = (newProfiles, newActiveId) => {
+    try {
+      localStorage.setItem("jobmate_profiles", JSON.stringify(newProfiles));
+      if (newActiveId) localStorage.setItem("jobmate_active_profile_id", newActiveId);
+    } catch {}
+  };
+
+  const setActiveProfileData = (data) => {
+    const updated = profiles.map(p => p.id === activeProfileId ? { ...p, data } : p);
+    setProfiles(updated);
+    saveProfiles(updated, activeProfileId);
+  };
+
+  const switchProfile = (id) => {
+    setActiveProfileId(id);
+    localStorage.setItem("jobmate_active_profile_id", id);
+  };
+
+  const addProfile = (name) => {
+    if (profiles.length >= 4) return;
+    const id = Date.now().toString();
+    const newProfiles = [...profiles, { id, name, data: EMPTY_PROFILE }];
+    setProfiles(newProfiles);
+    setActiveProfileId(id);
+    saveProfiles(newProfiles, id);
+  };
+
+  const renameProfile = (id, name) => {
+    const updated = profiles.map(p => p.id === id ? { ...p, name } : p);
+    setProfiles(updated);
+    saveProfiles(updated, activeProfileId);
+  };
+
+  const deleteProfile = (id) => {
+    if (profiles.length <= 1) return; // always keep at least one
+    const updated = profiles.filter(p => p.id !== id);
+    const newActiveId = activeProfileId === id ? updated[0].id : activeProfileId;
+    setProfiles(updated);
+    setActiveProfileId(newActiveId);
+    saveProfiles(updated, newActiveId);
+  };
   const [quickApplyCV, setQuickApplyCV] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [resumeVersions, setResumeVersions] = useState([]);
@@ -421,19 +481,6 @@ export default function App() {
 
   if (!user) return <LoginPage />;
 
-  if (active === "resume") {
-    return (
-      <ResumeEditor
-        onBack={() => { setActive("apply"); setQuickApplyCV(null); }}
-        profile={profile}
-        quickApplyCV={quickApplyCV}
-        resumeVersions={resumeVersions}
-        onSaveVersion={handleSaveResumeVersion}
-        onDeleteVersion={handleDeleteResumeVersion}
-      />
-    );
-  }
-
   const page = PAGES[active];
 
   return (
@@ -489,24 +536,42 @@ export default function App() {
 
       {/* Main content */}
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        {/* Page header */}
-        <div style={{ background:C.white, borderBottom:`0.5px solid ${C.gray200}`, padding:"18px 28px" }}>
-          <h1 style={{ fontFamily:DISPLAY, fontSize:20, fontWeight:700, color:C.navy, margin:"0 0 3px" }}>{page.title}</h1>
-          <p style={{ fontSize:13, color:C.gray400, margin:0 }}>{page.sub}</p>
-        </div>
+        {/* Page header — hidden for Resume Editor since it needs full height */}
+        {active !== "resume" && (
+          <div style={{ background:C.white, borderBottom:`0.5px solid ${C.gray200}`, padding:"18px 28px" }}>
+            <h1 style={{ fontFamily:DISPLAY, fontSize:20, fontWeight:700, color:C.navy, margin:"0 0 3px" }}>{page.title}</h1>
+            <p style={{ fontSize:13, color:C.gray400, margin:0 }}>{page.sub}</p>
+          </div>
+        )}
 
         {/* Page body */}
-        <div style={{ flex:1, overflowY:"auto", padding:"24px 28px" }}>
+        <div style={{ flex:1, overflowY: active === "resume" ? "hidden" : "auto", padding: active === "resume" ? 0 : "24px 28px" }}>
           {dataLoading && active === "tracker" && <div style={{ fontSize:13, color:C.gray400, marginBottom:12 }}>Loading your applications…</div>}
-          {active === "profile"   && <ProfilePage profile={profile} setProfile={setProfile} />}
+          {active === "profile"   && <ProfilePage
+                                      profiles={profiles}
+                                      activeProfileId={activeProfileId}
+                                      profile={activeProfile}
+                                      setProfile={setActiveProfileData}
+                                      onSwitch={switchProfile}
+                                      onAdd={addProfile}
+                                      onRename={renameProfile}
+                                      onDelete={deleteProfile}
+                                    />}
           {active === "tracker"   && <JobTracker jobs={jobs} onSaveJob={handleSaveJob} onDeleteJob={handleDeleteJob} resumeVersions={resumeVersions} />}
-          {active === "apply"     && <QuickApply profile={profile} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />}
-          {active === "findjobs"  && <FindJobs profile={profile} onQuickApply={goToQuickApplyWithJob} onSaveToTracker={saveJobToTracker} />}
-          {active === "cv"        && <CVTailor profile={profile} resumeVersions={resumeVersions} />}
-          {active === "cover"     && <CoverLetter profile={profile} />}
-          {active === "interview" && <InterviewPrep profile={profile} />}
-          {active === "salary"    && <SalaryCoach profile={profile} />}
-          {active === "linkedin"  && <LinkedInOptimizer profile={profile} />}
+          {active === "apply"     && <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />}
+          {active === "findjobs"  && <FindJobs profile={activeProfile} onQuickApply={goToQuickApplyWithJob} onSaveToTracker={saveJobToTracker} />}
+          {active === "cv"        && <CVTailor profile={activeProfile} resumeVersions={resumeVersions} />}
+          {active === "cover"     && <CoverLetter profile={activeProfile} />}
+          {active === "interview" && <InterviewPrep profile={activeProfile} />}
+          {active === "salary"    && <SalaryCoach profile={activeProfile} />}
+          {active === "linkedin"  && <LinkedInOptimizer profile={activeProfile} />}
+          {active === "resume"    && <ResumeEditor
+                                      profile={activeProfile}
+                                      quickApplyCV={quickApplyCV}
+                                      resumeVersions={resumeVersions}
+                                      onSaveVersion={handleSaveResumeVersion}
+                                      onDeleteVersion={handleDeleteResumeVersion}
+                                    />}
         </div>
       </div>
     </div>

@@ -132,13 +132,13 @@ const EducationSection = ({ data, setData, accentColor, sectionStyle }) => {
       <SectionHeading title="Education" sectionStyle={sectionStyle} accentColor={accentColor} />
       {data.education.map((edu, i) => (
         <div key={i} style={{ marginBottom: 6 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontWeight: 700, fontSize: 12.5 }}><Editable value={edu.school} onChange={v => updateEdu(i, "school", v)} /></span>
-            <span style={{ fontSize: 11.5, color: "#475569" }}><Editable value={edu.location} onChange={v => updateEdu(i, "location", v)} /></span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+            <span style={{ fontWeight: 700, fontSize: 12.5, flex: 1, minWidth: 0 }}><Editable value={edu.school} onChange={v => updateEdu(i, "school", v)} /></span>
+            <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}><Editable value={edu.location} onChange={v => updateEdu(i, "location", v)} /></span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontStyle: "italic", fontSize: 12, color: "#334155" }}><Editable value={edu.degree} onChange={v => updateEdu(i, "degree", v)} /></span>
-            <span style={{ fontSize: 11.5, color: "#475569" }}><Editable value={edu.dates} onChange={v => updateEdu(i, "dates", v)} /></span>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontStyle: "italic", fontSize: 12, color: "#334155", flex: 1, minWidth: 0 }}><Editable value={edu.degree} onChange={v => updateEdu(i, "degree", v)} /></span>
+            <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}><Editable value={edu.dates} onChange={v => updateEdu(i, "dates", v)} /></span>
           </div>
         </div>
       ))}
@@ -154,13 +154,13 @@ const ExperienceSection = ({ data, setData, accentColor, sectionStyle }) => {
       <SectionHeading title="Work Experience" sectionStyle={sectionStyle} accentColor={accentColor} />
       {data.experience.map((exp, i) => (
         <div key={i} style={{ marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontWeight: 700, fontSize: 13 }}><Editable value={exp.company} onChange={v => updateExp(i, "company", v)} /></span>
-            <span style={{ fontSize: 11.5, color: "#475569" }}><Editable value={exp.location} onChange={v => updateExp(i, "location", v)} /></span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+            <span style={{ fontWeight: 700, fontSize: 13, flex: 1, minWidth: 0 }}><Editable value={exp.company} onChange={v => updateExp(i, "company", v)} /></span>
+            <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}><Editable value={exp.location} onChange={v => updateExp(i, "location", v)} /></span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontStyle: "italic", fontSize: 12, color: "#334155" }}><Editable value={exp.title} onChange={v => updateExp(i, "title", v)} /></span>
-            <span style={{ fontSize: 11.5, color: "#475569" }}><Editable value={exp.dates} onChange={v => updateExp(i, "dates", v)} /></span>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontStyle: "italic", fontSize: 12, color: "#334155", flex: 1, minWidth: 0 }}><Editable value={exp.title} onChange={v => updateExp(i, "title", v)} /></span>
+            <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}><Editable value={exp.dates} onChange={v => updateExp(i, "dates", v)} /></span>
           </div>
           <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
             {exp.bullets.map((b, bi) => (
@@ -241,10 +241,10 @@ const ResumePreview = ({ data, setData, template, font, sectionOrder }) => {
   }
 
   return (
-    <div style={{ background: C.white, width: "100%", minHeight: "100%", padding: "40px 48px", fontFamily: fontCss, fontSize: 13, lineHeight: 1.55, color: "#1a1a1a", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
+    <div style={{ background: C.white, width: "100%", padding: "20mm 18mm", fontFamily: fontCss, fontSize: 11.5, lineHeight: 1.55, color: "#1a1a1a", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
       {headerBlock}
       {sectionsContent}
-      <div style={{ marginTop: 20, fontSize: 10, color: C.gray300, textAlign: "center", fontFamily: UI_FONT }}>
+      <div className="no-print" style={{ marginTop: 20, fontSize: 10, color: C.gray300, textAlign: "center", fontFamily: UI_FONT }}>
         Click any text to edit • Changes save automatically
       </div>
     </div>
@@ -435,7 +435,11 @@ const AICoach = ({ data, setData }) => {
         <button onClick={sendChat} disabled={loading || !input.trim()}
           style={{ width: 36, height: 36, borderRadius: 8, background: C.purple, border: "none", cursor: loading || !input.trim() ? "not-allowed" : "pointer", fontSize: 15, opacity: loading || !input.trim() ? 0.5 : 1, flexShrink: 0, color: "#fff" }}>↑</button>
       </div>
-      <style>{`@keyframes pulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }`}</style>
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
+      `}</style>
     </div>
   );
 };
@@ -531,7 +535,7 @@ function profileToResumeData(profile) {
 // ── Main export ──────────────────────────────────────────────────
 // versions / onSaveVersion / onDeleteVersion are optional — editor still works
 // stand-alone (e.g. unauthenticated preview) if they're not passed.
-export default function ResumeEditor({ onBack, profile, quickApplyCV, resumeVersions = [], onSaveVersion, onDeleteVersion }) {
+export default function ResumeEditor({ profile, quickApplyCV, resumeVersions = [], onSaveVersion, onDeleteVersion }) {
   const initialVersion = quickApplyCV ? null : (resumeVersions[0] || null);
 
   const [data, setData] = useState(() => {
@@ -546,6 +550,15 @@ export default function ResumeEditor({ onBack, profile, quickApplyCV, resumeVers
   });
   const [currentVersionId, setCurrentVersionId] = useState(initialVersion?.id || null);
   const [lastSavedData, setLastSavedData] = useState(initialVersion?.data || null);
+
+  // Re-seed resume data when profile changes (e.g. user switches active profile,
+  // or fills in profile for the first time), but only if user hasn't selected a
+  // saved resume version — that takes precedence over the profile.
+  useEffect(() => {
+    if (!profile?.name) return;
+    if (currentVersionId) return; // saved version selected — don't overwrite
+    setData(profileToResumeData(profile));
+  }, [profile?.name, profile?.summary, profile?.skills?.length]);
   const [template, setTemplate] = useState("classic");
   const [font, setFont] = useState("georgia");
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SECTION_ORDER);
@@ -589,32 +602,27 @@ export default function ResumeEditor({ onBack, profile, quickApplyCV, resumeVers
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: UI_FONT, background: C.gray100 }}>
-      {/* Top bar */}
-      <div style={{ background: C.navy, padding: "0 24px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          {onBack && (
-            <button onClick={onBack} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.6)", cursor: "pointer", fontSize: 13, fontFamily: UI_FONT, display: "flex", alignItems: "center", gap: 4 }}>
-              ← Back
-            </button>
-          )}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: DISPLAY, fontSize: 16, fontWeight: 800, color: C.white }}>JobMate</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, background: "rgba(37,99,235,0.25)", padding: "2px 7px", borderRadius: 99 }}>AI</span>
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>/ Resume Editor</span>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: UI_FONT, background: C.gray100 }}>
+      {/* Slim toolbar — consistent with app header style, no duplicate JobMate logo */}
+      <div style={{ background: C.white, borderBottom: `0.5px solid ${C.gray200}`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div>
+          <h1 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: C.navy, margin: "0 0 2px" }}>Resume editor</h1>
+          <p style={{ fontSize: 12, color: C.gray400, margin: 0 }}>Click any text to edit directly • Choose a layout, font and section order on the right</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => {
-            const win = window.open("", "_blank");
-            const el = document.getElementById("resume-preview-print");
-            win.document.write(`<html><head><title>Resume</title></head><body style="margin:0">${el.innerHTML}</body></html>`);
-            win.document.close(); win.focus();
-            setTimeout(() => { win.print(); win.close(); }, 400);
-          }} style={{ padding: "6px 14px", borderRadius: 6, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: C.white, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: UI_FONT }}>
-            📥 Download PDF
-          </button>
-        </div>
+        <button onClick={() => {
+          const win = window.open("", "_blank");
+          const el = document.getElementById("resume-preview-print");
+          win.document.write(`<html><head><title>Resume</title><style>
+            @page { margin: 0; size: A4; }
+            @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
+            html, body { margin: 0; padding: 0; height: auto !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; overflow: hidden; }
+            * { box-sizing: border-box; }
+          </style></head><body style="margin:0;padding:0">${el.innerHTML}</body></html>`);
+          win.document.close(); win.focus();
+          setTimeout(() => { win.print(); win.close(); }, 400);
+        }} style={{ padding: "8px 18px", borderRadius: 8, background: C.accent, color: C.white, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: UI_FONT, display: "flex", alignItems: "center", gap: 6 }}>
+          📥 Download PDF
+        </button>
       </div>
 
       {/* Version selector */}
