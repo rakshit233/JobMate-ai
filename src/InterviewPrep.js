@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { callClaude } from "./matching";
+import { callClaude, SONNET, HAIKU } from "./matching";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -39,7 +39,8 @@ const QuestionGenerator = ({ profile, jd, setJd, onGenerated, loading, setLoadin
       const raw = await callClaude(
         `You are an expert interview coach for the German job market. Generate 8 likely interview questions for this role and candidate. Return ONLY valid JSON array, no markdown:
 [{"question":"...","type":"behavioural|technical|motivational|situational","modelAnswer":"2-3 sentence strong answer using STAR method where relevant, tailored to the candidate"}]`,
-        `CANDIDATE:\n${profileSummary}\n\nJOB DESCRIPTION:\n${jd}`
+        `CANDIDATE:\n${profileSummary}\n\nJOB DESCRIPTION:\n${jd}`,
+        SONNET
       );
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       onGenerated(parsed);
@@ -181,7 +182,8 @@ const MockSession = ({ questions, queue, onExit, onReplayWeak }) => {
       const raw = await callClaude(
         `You are an interview coach. Evaluate the candidate's answer. Return ONLY valid JSON, no markdown:
 {"score":7,"clarity":"1-2 sentence note on clarity","structure":"1-2 sentence note on STAR/structure use","improvedAnswer":"a tightened, stronger version of their answer in 2-3 sentences"}`,
-        `QUESTION: ${q.question}\nCANDIDATE'S ANSWER: ${answer || "No answer given"}\nMODEL ANSWER FOR REFERENCE: ${q.modelAnswer}`
+        `QUESTION: ${q.question}\nCANDIDATE'S ANSWER: ${answer || "No answer given"}\nMODEL ANSWER FOR REFERENCE: ${q.modelAnswer}`,
+        HAIKU
       );
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       setFeedback(parsed);

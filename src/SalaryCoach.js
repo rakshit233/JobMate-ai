@@ -13,7 +13,7 @@ const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 const callClaude = async (system, user) => {
   const res = await fetch("/api/claude", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();
   return data.content?.[0]?.text || "";

@@ -11,12 +11,15 @@ const C = {
 const UI_FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
-// ── API ──────────────────────────────────────────────────────────
-const callClaude = async (system, user) => {
+const SONNET = "claude-sonnet-4-6";
+const HAIKU  = "claude-haiku-4-5-20251001";
+
+// callClaude with explicit model param
+const callClaude = async (system, user, model = HAIKU) => {
   const res = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model, max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();
   return data.content?.[0]?.text || "";
@@ -369,7 +372,7 @@ const AICoach = ({ data, setData }) => {
     setActiveAction(action.label); setLoading(true);
     setMessages(m => [...m, { role: "user", text: action.label }]);
     try {
-      const result = await callClaude("You are an expert resume coach and ATS specialist. Be concise and actionable.", action.prompt(data));
+      const result = await callClaude("You are an expert resume coach and ATS specialist. Be concise and actionable.", action.prompt(data), HAIKU);
       setMessages(m => [...m, { role: "assistant", text: result, field: action.field }]);
     } catch { setMessages(m => [...m, { role: "assistant", text: "Something went wrong. Please try again." }]); }
     setLoading(false); setActiveAction(null);
@@ -381,7 +384,7 @@ const AICoach = ({ data, setData }) => {
     setMessages(m => [...m, { role: "user", text: userText }]);
     setLoading(true);
     try {
-      const result = await callClaude(`You are an expert resume coach. The user's resume data: ${JSON.stringify(data)}. Be specific and actionable. Keep responses under 150 words unless asked for more.`, userText);
+      const result = await callClaude(`You are an expert resume coach. The user's resume data: ${JSON.stringify(data)}. Be specific and actionable. Keep responses under 150 words unless asked for more.`, userText, SONNET);
       setMessages(m => [...m, { role: "assistant", text: result, field: "chat" }]);
     } catch { setMessages(m => [...m, { role: "assistant", text: "Something went wrong. Please try again." }]); }
     setLoading(false);

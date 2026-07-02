@@ -1,15 +1,22 @@
 // Shared matching logic — used by Quick Apply and Find Jobs
 // Single source of truth so both features score consistently.
 
-export const callClaude = async (system, user) => {
+const SONNET = "claude-sonnet-4-6";
+const HAIKU  = "claude-haiku-4-5-20251001";
+
+// callClaude accepts an optional model param.
+// Default is Haiku for lightweight/scoring tasks; pass SONNET for writing tasks.
+export const callClaude = async (system, user, model = HAIKU) => {
   const res = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model, max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();
   return data.content?.[0]?.text || "";
 };
+
+export { SONNET, HAIKU };
 
 export const profileSummaryText = (profile) => {
   if (!profile?.name) return "Generic candidate — no profile saved.";
