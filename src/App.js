@@ -14,9 +14,11 @@ import {
 } from "./supabase";
 
 const C = {
-  navy: "#0F1F3D",
-  navyHover: "rgba(255,255,255,0.06)",
-  navyActive: "rgba(37,99,235,0.22)",
+  navy: "#0F1F3D",              // headings only — no longer a surface color
+  sidebarBg: "rgba(255,255,255,0.92)",
+  navHover: "rgba(37,99,235,0.06)",
+  navActive: "linear-gradient(120deg, rgba(37,99,235,0.12), rgba(56,189,248,0.10))",
+  cyan: "#38BDF8",
   accent: "#2563EB",
   accentLight: "#EFF6FF",
   gray50: "#F8FAFC",
@@ -46,6 +48,23 @@ const callClaude = async (system, user) => {
 
 const Spinner = () => <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />;
 
+// Animated number — eases up to its value, respects reduced motion
+const CountUp = ({ value, style: s }) => {
+  const [v, setV] = useState(0);
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !value) { setV(value); return; }
+    let raf; const start = performance.now(); const dur = 700;
+    const tick = (now) => {
+      const p = Math.min((now - start) / dur, 1);
+      setV(Math.round(value * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <div style={s}>{v}</div>;
+};
+
 const Label = ({ children }) => <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, display: "block", marginBottom: 5 }}>{children}</label>;
 
 const Input = ({ value, onChange, placeholder, type = "text" }) => (
@@ -61,7 +80,7 @@ const TextArea = ({ value, onChange, placeholder, rows = 5 }) => (
 );
 
 const Card = ({ children, style: s }) => (
-  <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "18px 22px", ...s }}>{children}</div>
+  <div className="ja-card" style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "18px 22px", ...s }}>{children}</div>
 );
 
 const ResultBox = ({ content }) => (
@@ -127,12 +146,12 @@ const CVTailor = ({ profile, resumeVersions = [] }) => {
           {autoMatched && <span style={{ fontSize: 11, color: C.accent }}>✓ Auto-matched to job title</span>}
         </div>
       )}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 14 }}>
+      <div className="ja-grid2" style={{ gap: 16, marginBottom: 14 }}>
         <Card><Label>Your current CV</Label><TextArea value={cv} onChange={setCv} placeholder="Paste your full CV text here..." rows={12} /></Card>
         <Card><Label>Job description</Label><TextArea value={jd} onChange={setJd} placeholder="Paste the full job description..." rows={12} /></Card>
       </div>
       <button onClick={async () => { setLoading(true); setResult(""); try { const r = await callClaude("You are an expert CV writer for the German job market. Rewrite and tailor the CV to match the job description. ATS-optimised, strong action verbs, concise. Output only the CV text.", `CV:\n${cv}\n\nJD:\n${jd}`); setResult(r); } catch(e){} setLoading(false); }} disabled={loading || !cv.trim() || !jd.trim()}
-        style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
+        className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Tailoring...</> : "✨ Tailor my CV for this job"}
       </button>
       {result && <ResultBox content={result} />}
@@ -153,7 +172,7 @@ const CoverLetter = ({ profile }) => {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 14 }}>
+      <div className="ja-grid2" style={{ gap: 16, marginBottom: 14 }}>
         <Card>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div><Label>Your full name</Label><Input value={name} onChange={setName} placeholder="e.g. Rakshit Tiwari" /></div>
@@ -179,7 +198,7 @@ const CoverLetter = ({ profile }) => {
         </Card>
       </div>
       <button onClick={async () => { setLoading(true); setResult(""); try { const r = await callClaude("Expert cover letter writer for English speakers applying to German companies. Strong hook, connects background to role, confident close. 300-350 words. Output only the letter.", `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}`); setResult(r); } catch(e){} setLoading(false); }} disabled={loading || !name || !role || !company || !bg}
-        style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
+        className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Writing...</> : "✨ Generate cover letter"}
       </button>
       {result && <ResultBox content={result} />}
@@ -216,11 +235,11 @@ const JobTracker = ({ jobs, onSaveJob, onDeleteJob, resumeVersions }) => {
 
   return (
     <div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10, marginBottom: 18 }}>
+      <div className="ja-stats" style={{ marginBottom: 18 }}>
         {STATUSES.map(s => {
           const cfg = STATUS_CONFIG[s];
           return <div key={s} style={{ background: cfg.bg, borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: cfg.color, fontFamily: DISPLAY }}>{counts[s]}</div>
+            <CountUp value={counts[s]} style={{ fontSize: 22, fontWeight: 700, color: cfg.color, fontFamily: DISPLAY }} />
             <div style={{ fontSize: 11, fontWeight: 600, color: cfg.color, marginTop: 2 }}>{s}</div>
           </div>;
         })}
@@ -231,7 +250,8 @@ const JobTracker = ({ jobs, onSaveJob, onDeleteJob, resumeVersions }) => {
           style={{ padding: "7px 16px", borderRadius: 8, background: C.accent, color: C.white, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT }}>+ Add job</button>
       </div>
       <Card style={{ padding: 0, overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="ja-scrollx">
+        <table style={{ width: "100%", minWidth: 680, borderCollapse: "collapse" }}>
           <thead><tr style={{ background: C.gray50, borderBottom: `0.5px solid ${C.gray200}` }}>
             {["Role","Company","Location","Date","Status","CV version","Notes",""].map(h => <th key={h} style={{ padding: "9px 14px", fontSize: 11, fontWeight: 700, color: C.gray600, textAlign: "left" }}>{h}</th>)}
           </tr></thead>
@@ -258,10 +278,11 @@ const JobTracker = ({ jobs, onSaveJob, onDeleteJob, resumeVersions }) => {
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
       {showForm && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(15,31,61,0.45)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:100 }}>
-          <div style={{ background:C.white, borderRadius:14, padding:24, width:"100%", maxWidth:460 }}>
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,31,61,0.45)", backdropFilter:"blur(3px)", display:"flex", alignItems:"center", justifyContent:"center", zIndex:220, padding:16 }}>
+          <div className="ja-page" style={{ background:C.white, borderRadius:14, padding:24, width:"100%", maxWidth:460, maxHeight:"90dvh", overflowY:"auto" }}>
             <div style={{ fontSize:15, fontWeight:700, color:C.navy, marginBottom:18 }}>{editId?"Edit application":"Add new job"}</div>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               <div><Label>Job title *</Label><Input value={form.role} onChange={v=>setForm({...form,role:v})} placeholder="e.g. Product Manager" /></div>
@@ -297,17 +318,18 @@ const JobTracker = ({ jobs, onSaveJob, onDeleteJob, resumeVersions }) => {
 // ── Nav item ─────────────────────────────────────────────────────
 const NavItem = ({ icon, label, id, active, onClick }) => (
   <button onClick={() => onClick(id)}
-    style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 10px", borderRadius:8, cursor:"pointer", width:"100%", border:"none", textAlign:"left", fontFamily:FONT, background: active ? C.navyActive : "transparent", transition:"background 0.12s" }}
-    onMouseOver={e => { if(!active) e.currentTarget.style.background = C.navyHover; }}
+    style={{ position:"relative", display:"flex", alignItems:"center", gap:9, padding:"8px 10px", borderRadius:9, cursor:"pointer", width:"100%", border:"none", textAlign:"left", fontFamily:FONT, background: active ? C.navActive : "transparent", transition:"background 0.15s" }}
+    onMouseOver={e => { if(!active) e.currentTarget.style.background = C.navHover; }}
     onMouseOut={e => { if(!active) e.currentTarget.style.background = "transparent"; }}>
-    <i className={`ti ${icon}`} style={{ fontSize:15, color: active ? "#93C5FD" : "rgba(255,255,255,0.45)", flexShrink:0 }} aria-hidden="true" />
-    <span style={{ fontSize:13, color: active ? "#fff" : "rgba(255,255,255,0.6)", fontWeight: active ? 500 : 400 }}>{label}</span>
+    {active && <span style={{ position:"absolute", left:0, top:7, bottom:7, width:3, borderRadius:99, background:`linear-gradient(${C.accent}, ${C.cyan})`, boxShadow:"0 0 10px rgba(56,189,248,0.6)" }} />}
+    <i className={`ti ${icon}`} style={{ fontSize:15, color: active ? C.accent : C.gray400, flexShrink:0, marginLeft: active ? 4 : 0, transition:"margin 0.15s, color 0.15s" }} aria-hidden="true" />
+    <span style={{ fontSize:13, color: active ? C.navy : C.gray600, fontWeight: active ? 600 : 400 }}>{label}</span>
   </button>
 );
 
 const NavSection = ({ label, children }) => (
   <div style={{ marginBottom:18 }}>
-    <div style={{ fontSize:10, fontWeight:500, color:"rgba(255,255,255,0.28)", letterSpacing:"0.07em", textTransform:"uppercase", padding:"0 10px", marginBottom:4 }}>{label}</div>
+    <div style={{ fontSize:10, fontWeight:600, color:C.gray400, letterSpacing:"0.07em", textTransform:"uppercase", padding:"0 10px", marginBottom:4 }}>{label}</div>
     {children}
   </div>
 );
@@ -331,6 +353,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [active, setActive] = useState("apply");
+  const [navOpen, setNavOpen] = useState(false);
+  const go = (id) => { setActive(id); setNavOpen(false); };
   // ── Multi-profile state (up to 4 named profiles) ─────────────
   const [profiles, setProfiles] = useState(() => {
     try {
@@ -473,7 +497,8 @@ export default function App() {
 
   if (authLoading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT, color: C.gray400, fontSize: 14 }}>
+      <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", gap: 14, alignItems: "center", justifyContent: "center", fontFamily: FONT, color: C.gray400, fontSize: 14 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${C.accent}, ${C.cyan})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, animation: "ja-pulse 1.6s ease-in-out infinite" }}>🎯</div>
         Loading JobMate...
       </div>
     );
@@ -484,80 +509,94 @@ export default function App() {
   const page = PAGES[active];
 
   return (
-    <div style={{ display:"flex", height:"100vh", fontFamily:FONT, background:C.gray50 }}>
+    <div className="ja-shell" style={{ display:"flex", fontFamily:FONT, position:"relative" }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
         * { box-sizing: border-box; }
-        @keyframes pageIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-        .page-anim { animation: pageIn 0.32s ease; }
-        button { transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease; }
-        button:active { transform: scale(0.98); }
-        select, input, textarea { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
-        @media (prefers-reduced-motion: reduce) {
-          .page-anim { animation: none; }
-          button { transition: none; }
-        }
       `}</style>
 
-      {/* Sidebar */}
-      <div style={{ width:210, background:C.navy, display:"flex", flexDirection:"column", flexShrink:0, height:"100vh", overflow:"hidden" }}>
+      {/* Ambient aurora */}
+      <div aria-hidden="true">
+        <div className="ja-orb ja-orb-1" />
+        <div className="ja-orb ja-orb-2" />
+      </div>
+
+      {/* Mobile top bar */}
+      <div className="ja-appbar">
+        <button onClick={() => setNavOpen(true)} aria-label="Open menu"
+          style={{ width:38, height:38, borderRadius:10, border:`0.5px solid ${C.gray200}`, background:C.white, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <i className="ti ti-menu-2" style={{ fontSize:18, color:C.navy }} aria-hidden="true" />
+        </button>
+        <div style={{ width:26, height:26, background:`linear-gradient(135deg, ${C.accent}, ${C.cyan})`, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13 }}>🎯</div>
+        <span style={{ fontFamily:DISPLAY, fontSize:15, fontWeight:700, color:C.navy }}>JobMate</span>
+        <span style={{ fontSize:12, color:C.gray400, marginLeft:"auto", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:140 }}>{page.title}</span>
+      </div>
+
+      {/* Drawer backdrop (mobile) */}
+      {navOpen && <div className="ja-overlay" onClick={() => setNavOpen(false)} />}
+
+      {/* Sidebar — light glass */}
+      <div className={`ja-sidebar${navOpen ? " open" : ""}`}
+        style={{ width:226, background:C.sidebarBg, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRight:`1px solid ${C.gray200}`, display:"flex", flexDirection:"column", flexShrink:0, height:"100%", overflow:"hidden" }}>
         {/* Logo */}
-        <div style={{ padding:"16px 14px 14px", display:"flex", alignItems:"center", gap:9, borderBottom:"0.5px solid rgba(255,255,255,0.08)" }}>
-          <div style={{ width:28, height:28, background:C.accent, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center" }}>🎯</div>
-          <span style={{ fontFamily:DISPLAY, fontSize:16, fontWeight:700, color:"#fff" }}>JobMate</span>
-          <span style={{ fontSize:9, fontWeight:700, color:C.accent, background:"rgba(37,99,235,0.2)", padding:"2px 6px", borderRadius:99 }}>AI</span>
+        <div style={{ padding:"16px 14px 14px", display:"flex", alignItems:"center", gap:9, borderBottom:`1px solid ${C.gray100}` }}>
+          <div style={{ width:28, height:28, background:`linear-gradient(135deg, ${C.accent}, ${C.cyan})`, borderRadius:7, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(37,99,235,0.35)" }}>🎯</div>
+          <span style={{ fontFamily:DISPLAY, fontSize:16, fontWeight:700, color:C.navy }}>JobMate</span>
+          <span style={{ fontSize:9, fontWeight:700, color:C.accent, background:C.accentLight, border:`0.5px solid rgba(37,99,235,0.25)`, padding:"2px 6px", borderRadius:99, animation:"ja-pulse 3s ease-in-out infinite" }}>AI</span>
+          <button onClick={() => setNavOpen(false)} aria-label="Close menu" className="ja-nav-close"
+            style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", color:C.gray400, fontSize:16, display: navOpen ? "block" : "none" }}>✕</button>
         </div>
 
         {/* Nav */}
         <div style={{ flex:1, padding:"12px 8px", overflowY:"auto" }}>
           <NavSection label="Me">
-            <NavItem icon="ti-user" label="My profile" id="profile" active={active==="profile"} onClick={setActive} />
-            <NavItem icon="ti-layout-kanban" label="Job tracker" id="tracker" active={active==="tracker"} onClick={setActive} />
+            <NavItem icon="ti-user" label="My profile" id="profile" active={active==="profile"} onClick={go} />
+            <NavItem icon="ti-layout-kanban" label="Job tracker" id="tracker" active={active==="tracker"} onClick={go} />
           </NavSection>
 
           <NavSection label="Apply">
-            <NavItem icon="ti-bolt" label="Quick apply" id="apply" active={active==="apply"} onClick={setActive} />
-            <NavItem icon="ti-search" label="Find jobs" id="findjobs" active={active==="findjobs"} onClick={setActive} />
-            <NavItem icon="ti-file-text" label="CV tailor" id="cv" active={active==="cv"} onClick={setActive} />
-            <NavItem icon="ti-mail" label="Cover letter" id="cover" active={active==="cover"} onClick={setActive} />
-            <NavItem icon="ti-edit" label="Resume editor" id="resume" active={active==="resume"} onClick={setActive} />
+            <NavItem icon="ti-bolt" label="Quick apply" id="apply" active={active==="apply"} onClick={go} />
+            <NavItem icon="ti-search" label="Find jobs" id="findjobs" active={active==="findjobs"} onClick={go} />
+            <NavItem icon="ti-file-text" label="CV tailor" id="cv" active={active==="cv"} onClick={go} />
+            <NavItem icon="ti-mail" label="Cover letter" id="cover" active={active==="cover"} onClick={go} />
+            <NavItem icon="ti-edit" label="Resume editor" id="resume" active={active==="resume"} onClick={go} />
           </NavSection>
 
           <NavSection label="Prepare">
-            <NavItem icon="ti-microphone" label="Interview prep" id="interview" active={active==="interview"} onClick={setActive} />
-            <NavItem icon="ti-currency-euro" label="Salary coach" id="salary" active={active==="salary"} onClick={setActive} />
-            <NavItem icon="ti-brand-linkedin" label="LinkedIn" id="linkedin" active={active==="linkedin"} onClick={setActive} />
+            <NavItem icon="ti-microphone" label="Interview prep" id="interview" active={active==="interview"} onClick={go} />
+            <NavItem icon="ti-currency-euro" label="Salary coach" id="salary" active={active==="salary"} onClick={go} />
+            <NavItem icon="ti-brand-linkedin" label="LinkedIn" id="linkedin" active={active==="linkedin"} onClick={go} />
           </NavSection>
         </div>
 
         {/* User footer */}
-        <div style={{ padding:"10px 12px", borderTop:"0.5px solid rgba(255,255,255,0.08)" }}>
+        <div style={{ padding:"10px 12px", borderTop:`1px solid ${C.gray100}` }}>
           <div style={{ display:"flex", alignItems:"center", gap:9 }}>
             {user.user_metadata?.avatar_url
               ? <img src={user.user_metadata.avatar_url} alt="" style={{ width:28, height:28, borderRadius:"50%", flexShrink:0 }} onError={e => e.target.style.display='none'} />
-              : <div style={{ width:28, height:28, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
+              : <div style={{ width:28, height:28, borderRadius:"50%", background:`linear-gradient(135deg, ${C.accent}, ${C.cyan})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
                   {(activeProfile?.name || user.user_metadata?.full_name || user.email || "JM").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
                 </div>}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.85)", fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProfile?.name || user.user_metadata?.full_name || user.email}</div>
-              <button onClick={signOut} style={{ fontSize:10, color:"rgba(255,255,255,0.35)", background:"none", border:"none", cursor:"pointer", padding:0, fontFamily:FONT }}>Sign out</button>
+              <div style={{ fontSize:12, color:C.gray800, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProfile?.name || user.user_metadata?.full_name || user.email}</div>
+              <button onClick={signOut} style={{ fontSize:10, color:C.gray400, background:"none", border:"none", cursor:"pointer", padding:0, fontFamily:FONT }}>Sign out</button>
             </div>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div className="ja-main" style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative", zIndex:1, minWidth:0 }}>
         {/* Page header — hidden for Resume Editor since it needs full height */}
         {active !== "resume" && (
-          <div style={{ background:C.white, borderBottom:`0.5px solid ${C.gray200}`, padding:"18px 28px" }}>
-            <h1 style={{ fontFamily:DISPLAY, fontSize:20, fontWeight:700, color:C.navy, margin:"0 0 3px" }}>{page.title}</h1>
+          <div style={{ background:"rgba(255,255,255,0.7)", backdropFilter:"blur(10px)", borderBottom:`1px solid ${C.gray200}`, padding:"16px 28px" }}>
+            <h1 style={{ fontFamily:DISPLAY, fontSize:20, fontWeight:700, margin:"0 0 3px", background:`linear-gradient(100deg, ${C.navy} 60%, ${C.accent})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>{page.title}</h1>
             <p style={{ fontSize:13, color:C.gray400, margin:0 }}>{page.sub}</p>
           </div>
         )}
 
         {/* Page body — key retriggers the fade-in on every tab switch */}
-        <div key={active} className="page-anim" style={{ flex:1, overflowY: active === "resume" ? "hidden" : "auto", padding: active === "resume" ? 0 : "24px 28px" }}>
+        <div key={active} className={active === "resume" ? "ja-page" : "ja-page ja-page-pad"} style={{ flex:1, overflowY: active === "resume" ? "hidden" : "auto", padding: active === "resume" ? 0 : "24px 28px" }}>
           {dataLoading && active === "tracker" && <div style={{ fontSize:13, color:C.gray400, marginBottom:12 }}>Loading your applications…</div>}
           {active === "profile"   && <ProfilePage
                                       profiles={profiles}

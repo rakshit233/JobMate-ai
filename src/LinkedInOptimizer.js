@@ -112,16 +112,16 @@ export default function LinkedInOptimizer({ profile }) {
             onFocus={e => e.target.style.borderColor = C.accent} onBlur={e => e.target.style.borderColor = C.gray200} />
         </div>
 
-        <button onClick={optimize} disabled={loading || (!about.trim() && !headline.trim())}
+        <button onClick={optimize} disabled={loading || (!about.trim() && !headline.trim())} className="ja-lift"
           style={{ width: "100%", padding: 12, borderRadius: 10, background: C.blue, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
           {loading ? <><Spinner /> Optimising your profile...</> : "💼 Optimise for German recruiters"}
         </button>
       </div>
 
       {result && (
-        <div style={{ display: "grid", gridTemplateColumns: "240px 1fr", gap: 14 }}>
+        <div className="ja-split-240">
           {/* Scores */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="ja-stagger" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "16px 18px" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: C.navy, marginBottom: 14 }}>Profile scores</div>
               <ScoreBar label="Headline" score={result.scores?.headline} color={scoreColor(result.scores?.headline)} />
@@ -155,7 +155,7 @@ export default function LinkedInOptimizer({ profile }) {
           </div>
 
           {/* Optimised content */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="ja-stagger" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "16px 18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: C.navy }}>✨ Optimised headline</div>

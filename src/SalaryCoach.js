@@ -78,7 +78,7 @@ export default function SalaryCoach({ profile }) {
     <div style={{ maxWidth: 860, margin: "0 auto" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      <div style={{ display: "grid", gridTemplateColumns: result ? "380px 1fr" : "1fr", gap: 16 }}>
+      <div className="ja-split-380" style={!result ? { gridTemplateColumns: "1fr" } : undefined}>
         {/* Input */}
         <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "20px 24px", alignSelf: "start" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
@@ -118,7 +118,7 @@ export default function SalaryCoach({ profile }) {
             </div>
           </div>
 
-          <button onClick={generate} disabled={loading || !role.trim()}
+          <button onClick={generate} disabled={loading || !role.trim()} className="ja-lift"
             style={{ width: "100%", marginTop: 14, padding: 12, borderRadius: 10, background: C.amber, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
             {loading ? <><Spinner /> Researching salaries...</> : "💰 Get salary guidance"}
           </button>
@@ -126,7 +126,7 @@ export default function SalaryCoach({ profile }) {
 
         {/* Results */}
         {result && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="ja-stagger" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "18px 22px" }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.navy, marginBottom: 4 }}>Salary range — {role} in {city}</div>
               <div style={{ fontSize: 12, color: C.gray400, marginBottom: 4 }}>{level}</div>

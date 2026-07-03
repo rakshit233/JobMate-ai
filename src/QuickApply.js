@@ -323,10 +323,10 @@ Output only the letter text.`,
           {/* Match score */}
           <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "18px 22px", marginBottom: 16 }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.navy, marginBottom: 14, display: "flex", alignItems: "center", gap: 7 }}>📊 Job match analysis</div>
-            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+            <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
               <ScoreRing score={result.score.score} />
               <div style={{ flex: 1 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div className="ja-grid2" style={{ gap: 10, marginBottom: 10 }}>
                   <div style={{ background: C.greenLight, borderRadius: 8, padding: "10px 12px", border: `0.5px solid ${C.greenBorder}` }}>
                     <div style={{ fontSize: 11, fontWeight: 600, color: C.green, marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>✅ Matched skills</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>

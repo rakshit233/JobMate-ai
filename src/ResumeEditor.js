@@ -643,7 +643,7 @@ export default function ResumeEditor({ profile, quickApplyCV, resumeVersions = [
       )}
 
       {/* 3-column layout: preview | design/ai toggle panel */}
-      <div style={{ flex: 1, display: "grid", gridTemplateColumns: "1fr 380px", overflow: "hidden" }}>
+      <div className="ja-editor-split" style={{ flex: 1, overflow: "hidden" }}>
         {/* Left: Resume preview */}
         <div style={{ overflowY: "auto", padding: "28px 36px", background: C.gray100 }}>
           <div id="resume-preview-print">

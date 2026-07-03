@@ -370,7 +370,7 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
       {/* Personal info */}
       <Card style={{ marginBottom: 16 }}>
         <SectionTitle icon="👤">Personal information</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div className="ja-grid2" style={{ gap: 14 }}>
           <Field label="Full name" required value={profile.name} onChange={v => setProfile({ ...profile, name: v })} placeholder="e.g. Rakshit Tiwari" />
           <Field label="Email" value={profile.email} onChange={v => setProfile({ ...profile, email: v })} placeholder="your@email.com" />
           <Field label="Phone" value={profile.phone} onChange={v => setProfile({ ...profile, phone: v })} placeholder="+49 123 456 789" />
@@ -409,7 +409,7 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
                 <button onClick={() => removeExp(i)} style={{ background: "none", border: "none", cursor: "pointer", color: C.gray400, fontSize: 12, fontFamily: FONT }}>Remove</button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div className="ja-grid2" style={{ gap: 12, marginBottom: 12 }}>
               <Field label="Job title" value={exp.title} onChange={v => updateExp(i, "title", v)} placeholder="e.g. Product Manager" />
               <Field label="Company" value={exp.company} onChange={v => updateExp(i, "company", v)} placeholder="e.g. Zalando" />
               <Field label="Location" value={exp.location} onChange={v => updateExp(i, "location", v)} placeholder="e.g. Berlin" />
@@ -455,7 +455,7 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
                 <button onClick={() => removeEdu(i)} style={{ background: "none", border: "none", cursor: "pointer", color: C.gray400, fontSize: 12, fontFamily: FONT }}>Remove</button>
               )}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="ja-grid2" style={{ gap: 12 }}>
               <Field label="School / University" value={edu.school} onChange={v => updateEdu(i, "school", v)} placeholder="e.g. University of Europe" />
               <Field label="Degree" value={edu.degree} onChange={v => updateEdu(i, "degree", v)} placeholder="e.g. Master of Business Administration" />
               <Field label="Field of study" value={edu.field} onChange={v => updateEdu(i, "field", v)} placeholder="e.g. Project Management" />
@@ -472,7 +472,7 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
       </Card>
 
       {/* Languages & Certifications */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+      <div className="ja-grid2" style={{ gap: 16, marginBottom: 24 }}>
         <Card>
           <SectionTitle icon="🌍">Languages</SectionTitle>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>

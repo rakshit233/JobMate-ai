@@ -34,9 +34,7 @@ const JobCard = ({ job, profile, onQuickApply, onSave }) => {
   })() : null;
 
   return (
-    <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "16px 20px", transition: "border-color 0.12s" }}
-      onMouseOver={e => e.currentTarget.style.borderColor = C.gray400}
-      onMouseOut={e => e.currentTarget.style.borderColor = C.gray200}>
+    <div className="ja-card" style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "16px 20px" }}>
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -174,7 +172,7 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
           🇩🇪 Searching English-friendly jobs across Germany — powered by Adzuna
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 140px", gap: 10, marginBottom: 12 }}>
+        <div className="ja-search-grid" style={{ marginBottom: 12 }}>
           <input value={keyword} onChange={e => setKeyword(e.target.value)} placeholder="Job title (e.g. Product Manager, Software Engineer)"
             style={{ padding: "9px 12px", borderRadius: 8, border: `0.5px solid ${C.gray200}`, fontSize: 13, color: C.gray800, outline: "none", fontFamily: FONT }}
             onFocus={e => e.target.style.borderColor = C.accent} onBlur={e => e.target.style.borderColor = C.gray200}
@@ -205,7 +203,7 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
           <span style={{ fontSize: 11, color: C.gray400 }}>— filters for listings that mention English or have international job titles</span>
         </div>
 
-        <button onClick={search} disabled={loading}
+        <button onClick={search} disabled={loading} className="ja-cta"
           style={{ width: "100%", padding: 12, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: loading ? "not-allowed" : "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
           {loading ? <><Spinner /> Searching jobs in Germany...</> : "🔍 Search jobs"}
         </button>
@@ -241,7 +239,7 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
       )}
 
       {/* Job cards — sorted by match score descending if available */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="ja-stagger" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {[...jobs]
           .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
           .map(job => (
