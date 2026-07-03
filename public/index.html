@@ -2,15 +2,133 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#F5F8FE" />
     <meta name="description" content="JobMate AI — turn any job posting into a tailored CV, cover letter and interview prep. Built for English speakers in Germany." />
     <title>JobMate AI — Land your job in Germany. In English.</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css" />
     <style>
+      :root {
+        --ja-blue: #2563EB;
+        --ja-cyan: #38BDF8;
+        --ja-navy: #0F1F3D;
+        --ja-bg: #F5F8FE;
+        --ja-line: #E3EAF6;
+      }
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { font-family: 'Inter', system-ui, sans-serif; background: #F8FAFC; }
+      html, body, #root { height: 100%; }
+      body {
+        font-family: 'Inter', system-ui, sans-serif;
+        background:
+          radial-gradient(900px 520px at 88% -12%, rgba(56,189,248,0.10), transparent 60%),
+          radial-gradient(820px 520px at -12% 105%, rgba(37,99,235,0.08), transparent 60%),
+          var(--ja-bg);
+        -webkit-text-size-adjust: 100%;
+      }
+
+      /* ── Motion primitives ─────────────────────────────── */
+      @keyframes ja-spin   { to { transform: rotate(360deg); } }
+      @keyframes ja-up     { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+      @keyframes ja-page   { from { opacity: 0; transform: translateY(10px); filter: blur(3px); } to { opacity: 1; transform: none; filter: none; } }
+      @keyframes ja-drift1 { from { transform: translate(0,0); } to { transform: translate(-46px, 34px); } }
+      @keyframes ja-drift2 { from { transform: translate(0,0); } to { transform: translate(52px, -28px); } }
+      @keyframes ja-sweep  { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+      @keyframes ja-shimmer{ from { background-position: -200% 0; } to { background-position: 200% 0; } }
+      @keyframes ja-pulse  { 0%,100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.35); } 50% { box-shadow: 0 0 0 6px rgba(56,189,248,0); } }
+
+      .ja-page { animation: ja-page 0.34s ease; }
+
+      /* Ambient aurora orbs behind the app */
+      .ja-orb { position: fixed; border-radius: 50%; filter: blur(90px); pointer-events: none; z-index: 0; }
+      .ja-orb-1 { width: 460px; height: 460px; top: -140px; right: -120px; background: rgba(56,189,248,0.16); animation: ja-drift1 16s ease-in-out infinite alternate; }
+      .ja-orb-2 { width: 400px; height: 400px; bottom: -150px; left: -130px; background: rgba(37,99,235,0.12); animation: ja-drift2 20s ease-in-out infinite alternate; }
+
+      /* Primary action button: living blue→cyan gradient */
+      .ja-cta {
+        background: linear-gradient(110deg, var(--ja-blue), var(--ja-cyan), var(--ja-blue)) !important;
+        background-size: 200% 100% !important;
+        animation: ja-sweep 6s linear infinite;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.15s ease;
+      }
+      .ja-cta:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(37,99,235,0.35); }
+
+      /* Non-blue buttons keep their color, just get the lift */
+      .ja-lift { transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.15s ease; }
+      .ja-lift:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(15,31,61,0.16); }
+
+      /* Cards: hover glow + lift */
+      .ja-card { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
+      .ja-card:hover { transform: translateY(-2px); border-color: rgba(56,189,248,0.5) !important; box-shadow: 0 10px 30px rgba(15,31,61,0.08); }
+
+      /* Staggered entrance for lists of results */
+      .ja-stagger > * { opacity: 0; animation: ja-up 0.45s ease forwards; }
+      .ja-stagger > *:nth-child(1) { animation-delay: 0.03s; }
+      .ja-stagger > *:nth-child(2) { animation-delay: 0.09s; }
+      .ja-stagger > *:nth-child(3) { animation-delay: 0.15s; }
+      .ja-stagger > *:nth-child(4) { animation-delay: 0.21s; }
+      .ja-stagger > *:nth-child(5) { animation-delay: 0.27s; }
+      .ja-stagger > *:nth-child(6) { animation-delay: 0.33s; }
+      .ja-stagger > *:nth-child(7) { animation-delay: 0.39s; }
+      .ja-stagger > *:nth-child(8) { animation-delay: 0.45s; }
+      .ja-stagger > *:nth-child(n+9) { animation-delay: 0.5s; }
+
+      /* Shimmer skeleton for loading states */
+      .ja-skeleton {
+        background: linear-gradient(90deg, #EDF2FB 25%, #F8FBFF 50%, #EDF2FB 75%);
+        background-size: 200% 100%;
+        animation: ja-shimmer 1.4s linear infinite;
+        border-radius: 10px;
+      }
+
+      button { transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease; }
+      button:active { transform: scale(0.98); }
+      select, input, textarea { transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+      input:focus, textarea:focus, select:focus { box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+
+      /* ── Responsive layout system ──────────────────────── */
+      .ja-shell { height: 100vh; height: 100dvh; }
+      .ja-grid2       { display: grid; grid-template-columns: 1fr 1fr; }
+      .ja-stats       { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+      .ja-search-grid { display: grid; grid-template-columns: 1fr 160px 140px; gap: 10px; }
+      .ja-split-380   { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+      .ja-split-240   { display: grid; grid-template-columns: 240px 1fr; gap: 14px; }
+      .ja-editor-split{ display: grid; grid-template-columns: 1fr 380px; }
+      .ja-scrollx     { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .ja-appbar      { display: none; }
+      .ja-overlay     { position: fixed; inset: 0; background: rgba(15,31,61,0.35); backdrop-filter: blur(2px); z-index: 190; }
+
+      @media (max-width: 880px) {
+        .ja-sidebar {
+          position: fixed; left: 0; top: 0; bottom: 0; z-index: 200;
+          transform: translateX(-102%);
+          transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+          box-shadow: 0 0 60px rgba(15,31,61,0.18);
+        }
+        .ja-sidebar.open { transform: none; }
+        .ja-appbar {
+          display: flex; position: fixed; top: 0; left: 0; right: 0; z-index: 180;
+          height: 56px; align-items: center; gap: 10px; padding: 0 14px;
+          background: rgba(255,255,255,0.86); backdrop-filter: blur(14px);
+          border-bottom: 1px solid var(--ja-line);
+        }
+        .ja-main { padding-top: 56px; }
+        .ja-page-pad { padding: 16px 14px !important; }
+        .ja-grid2, .ja-search-grid, .ja-split-380, .ja-split-240 { grid-template-columns: 1fr; }
+        .ja-stats { grid-template-columns: repeat(2, 1fr); }
+        .ja-stats > *:first-child { grid-column: 1 / -1; }
+        .ja-editor-split { grid-template-columns: 1fr; grid-template-rows: 1fr 340px; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .ja-page, .ja-stagger > * { animation: none !important; opacity: 1 !important; }
+        .ja-cta { animation: none !important; }
+        .ja-orb-1, .ja-orb-2 { animation: none !important; }
+        .ja-sidebar { transition: none !important; }
+        button { transition: none !important; }
+      }
     </style>
   </head>
   <body>
