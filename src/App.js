@@ -536,10 +536,10 @@ export default function App() {
             {user.user_metadata?.avatar_url
               ? <img src={user.user_metadata.avatar_url} alt="" style={{ width:28, height:28, borderRadius:"50%", flexShrink:0 }} onError={e => e.target.style.display='none'} />
               : <div style={{ width:28, height:28, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff", flexShrink:0 }}>
-                  {(profile?.name || user.user_metadata?.full_name || user.email || "JM").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
+                  {(activeProfile?.name || user.user_metadata?.full_name || user.email || "JM").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()}
                 </div>}
             <div style={{ flex:1, minWidth:0 }}>
-              <div style={{ fontSize:12, color:"rgba(255,255,255,0.85)", fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{profile?.name || user.user_metadata?.full_name || user.email}</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.85)", fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProfile?.name || user.user_metadata?.full_name || user.email}</div>
               <button onClick={signOut} style={{ fontSize:10, color:"rgba(255,255,255,0.35)", background:"none", border:"none", cursor:"pointer", padding:0, fontFamily:FONT }}>Sign out</button>
             </div>
           </div>
