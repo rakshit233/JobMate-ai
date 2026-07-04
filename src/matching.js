@@ -1,3 +1,4 @@
+import { getAuthHeader } from "./supabase";
 // Shared matching logic — used by Quick Apply and Find Jobs
 // Single source of truth so both features score consistently.
 
@@ -7,9 +8,10 @@ const HAIKU  = "claude-haiku-4-5-20251001";
 // callClaude accepts an optional model param.
 // Default is Haiku for lightweight/scoring tasks; pass SONNET for writing tasks.
 export const callClaude = async (system, user, model = HAIKU) => {
+  const authHeader = await getAuthHeader();
   const res = await fetch("/api/claude", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({ model, max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();

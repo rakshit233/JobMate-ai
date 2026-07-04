@@ -22,6 +22,15 @@ export const getUser = async () => {
   return user;
 };
 
+// Returns { Authorization: "Bearer <token>" } for the current session, or {} if
+// signed out. Every fetch to /api/claude or /api/adzuna must spread this in —
+// those endpoints reject requests without a valid Supabase session.
+export const getAuthHeader = async () => {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 // ── Resume versions ────────────────────────────────────────────────
 // Table: resume_versions
 //   id uuid pk default gen_random_uuid()

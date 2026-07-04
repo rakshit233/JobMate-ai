@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { getAuthHeader } from "./supabase";
 
 const C = {
   navy: "#0F1F3D",
@@ -22,9 +23,10 @@ const FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
 const callClaude = async (system, user) => {
+  const authHeader = await getAuthHeader();
   const res = await fetch("/api/claude", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({
       model: "claude-sonnet-4-6",
       max_tokens: 1000,
@@ -129,9 +131,10 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
       });
 
       // Send to Claude with PDF document block
+      const authHeader = await getAuthHeader();
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
           max_tokens: 1000,

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { getAuthHeader } from "./supabase";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -16,9 +17,10 @@ const HAIKU  = "claude-haiku-4-5-20251001";
 
 // callClaude with explicit model param
 const callClaude = async (system, user, model = HAIKU) => {
+  const authHeader = await getAuthHeader();
   const res = await fetch("/api/claude", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({ model, max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();

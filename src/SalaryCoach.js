@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { getAuthHeader } from "./supabase";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -11,8 +12,9 @@ const FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
 const callClaude = async (system, user) => {
+  const authHeader = await getAuthHeader();
   const res = await fetch("/api/claude", {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();

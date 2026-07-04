@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { scoreJobBatch } from "./matching";
+import { getAuthHeader } from "./supabase";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -124,7 +125,8 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
     setLoading(true); setError(""); setJobs([]); setSearched(true);
     try {
       const params = new URLSearchParams({ keyword, location, remote });
-      const res = await fetch(`/api/adzuna?${params.toString()}`);
+      const authHeader = await getAuthHeader();
+      const res = await fetch(`/api/adzuna?${params.toString()}`, { headers: authHeader });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Search failed");
 

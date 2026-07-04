@@ -9,7 +9,7 @@ import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
 import { profileToCVText, resumeDataToCVText } from "./matching";
 import {
-  supabase, signOut,
+  supabase, signOut, getAuthHeader,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
   listTrackerEntries, saveTrackerEntry, deleteTrackerEntry,
 } from "./supabase";
@@ -39,8 +39,9 @@ const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
 // ── Shared UI ─────────────────────────────────────────────────────
 const callClaude = async (system, user) => {
+  const authHeader = await getAuthHeader();
   const res = await fetch("/api/claude", {
-    method: "POST", headers: { "Content-Type": "application/json" },
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
   const data = await res.json();
