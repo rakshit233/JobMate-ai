@@ -1,5 +1,11 @@
+import { requireUser } from "./_auth.js";
+
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
+
+  // Reject the call before it touches Adzuna if there's no valid logged-in user.
+  const user = await requireUser(req, res);
+  if (!user) return; // requireUser already sent the 401/500 response
 
   const appId = process.env.ADZUNA_APP_ID;
   const appKey = process.env.ADZUNA_APP_KEY;
