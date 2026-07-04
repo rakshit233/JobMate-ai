@@ -57,3 +57,42 @@ export const scoreJobBatch = async (profile, jobs) => {
     return jobs.map(j => ({ ...j, matchScore: null }));
   }
 };
+
+// ── CV text builders ─────────────────────────────────────────────
+// Turn a saved profile into full CV text (used to pre-fill CV Tailor).
+export const profileToCVText = (profile) => {
+  if (!profile?.name) return "";
+  const contact = [profile.email, profile.phone, profile.location, profile.linkedin, profile.portfolio].filter(Boolean).join(" | ");
+  const exp = (profile.experience || []).filter(e => e.company).map(e =>
+    `${e.title || ""} — ${e.company}${e.location ? `, ${e.location}` : ""} (${e.startDate || ""}–${e.current ? "Present" : e.endDate || ""})\n${(e.bullets || []).filter(b => b && b.trim()).map(b => `• ${b}`).join("\n")}`
+  ).join("\n\n");
+  const edu = (profile.education || []).filter(e => e.school).map(e =>
+    `${[e.degree, e.field].filter(Boolean).join(" · ")} — ${e.school}${e.location ? `, ${e.location}` : ""} (${e.startDate || ""}–${e.endDate || ""})`
+  ).join("\n");
+  return [
+    profile.name,
+    contact,
+    profile.summary ? `\nSUMMARY\n${profile.summary}` : "",
+    exp ? `\nEXPERIENCE\n${exp}` : "",
+    edu ? `\nEDUCATION\n${edu}` : "",
+    (profile.skills || []).length ? `\nSKILLS\n${profile.skills.join(", ")}` : "",
+  ].filter(Boolean).join("\n");
+};
+
+// Turn a saved resume version's data object into full CV text.
+export const resumeDataToCVText = (d) => {
+  if (!d) return "";
+  const exp = (d.experience || []).filter(e => e.company).map(e =>
+    `${e.title || ""} — ${e.company}${e.location ? `, ${e.location}` : ""} (${e.dates || ""})\n${(e.bullets || []).filter(b => b && b.trim()).map(b => `• ${b}`).join("\n")}`
+  ).join("\n\n");
+  const edu = (d.education || []).filter(e => e.school).map(e =>
+    `${e.degree || ""} — ${e.school}${e.location ? `, ${e.location}` : ""} (${e.dates || ""})`
+  ).join("\n");
+  return [
+    d.name, d.contact,
+    d.summary ? `\nSUMMARY\n${d.summary}` : "",
+    exp ? `\nEXPERIENCE\n${exp}` : "",
+    edu ? `\nEDUCATION\n${edu}` : "",
+    d.skills ? `\nSKILLS\n${d.skills}` : "",
+  ].filter(Boolean).join("\n");
+};

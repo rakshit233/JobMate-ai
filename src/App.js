@@ -7,6 +7,7 @@ import SalaryCoach from "./SalaryCoach";
 import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
+import { profileToCVText, resumeDataToCVText } from "./matching";
 import {
   supabase, signOut,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
@@ -95,18 +96,19 @@ const ResultBox = ({ content }) => (
 );
 
 // ── CV Tailor ─────────────────────────────────────────────────────
-const CVTailor = ({ profile, resumeVersions = [] }) => {
-  const [cv, setCv] = useState(profile?.summary ? `${profile.name || ""}\n\n${profile.summary}\n\nSkills: ${(profile.skills || []).join(", ")}` : "");
+const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, resumeVersions = [] }) => {
+  const [cv, setCv] = useState(profileToCVText(profile));
   const [jd, setJd] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState(null);
   const [autoMatched, setAutoMatched] = useState(false);
+  const [manualFill, setManualFill] = useState(false); // true after user explicitly fills from a profile
 
   // Auto-select the version most recently tailored for a similar role, based on
   // job title appearing in the pasted JD. Keyword overlap only — no AI call needed.
   useEffect(() => {
-    if (!resumeVersions.length || !jd.trim() || selectedVersionId) return;
+    if (!resumeVersions.length || !jd.trim() || selectedVersionId || manualFill) return;
     const firstLine = jd.trim().split("\n")[0].toLowerCase();
     const words = firstLine.split(/\s+/).filter(w => w.length > 2);
     let best = null, bestScore = 0;
@@ -118,23 +120,36 @@ const CVTailor = ({ profile, resumeVersions = [] }) => {
     if (best) {
       setSelectedVersionId(best.id);
       setAutoMatched(true);
-      const d = best.data;
-      setCv(`${d.name}\n${d.contact}\n\n${d.summary}\n\nSkills: ${d.skills}`);
+      setCv(resumeDataToCVText(best.data));
     }
   }, [jd]);
 
   const applyVersion = (id) => {
     setSelectedVersionId(id);
     setAutoMatched(false);
+    setManualFill(false);
     if (!id) return;
     const v = resumeVersions.find(x => x.id === id);
     if (!v) return;
-    const d = v.data;
-    setCv(`${d.name}\n${d.contact}\n\n${d.summary}\n\nSkills: ${d.skills}`);
+    setCv(resumeDataToCVText(v.data));
   };
 
   return (
     <div>
+      <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: C.gray600 }}>Fill from profile:</span>
+        <select value={activeProfileId || ""} onChange={e => onSwitchProfile(e.target.value)}
+          style={{ padding: "5px 10px", borderRadius: 7, border: `0.5px solid ${C.gray200}`, fontSize: 12.5, color: C.gray800, background: C.white, fontFamily: FONT }}>
+          {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+        <button onClick={() => { setCv(profileToCVText(profile)); setSelectedVersionId(null); setAutoMatched(false); setManualFill(true); }}
+          disabled={!profile?.name}
+          className="ja-lift"
+          style={{ padding: "5px 13px", borderRadius: 7, border: "none", background: C.accentLight, color: C.accent, fontSize: 12.5, fontWeight: 600, cursor: "pointer", fontFamily: FONT, opacity: profile?.name ? 1 : 0.5 }}>
+          ↻ Fill CV
+        </button>
+        {!profile?.name && <span style={{ fontSize: 11, color: C.gray400 }}>This profile is empty — add details in My profile first</span>}
+      </div>
       {resumeVersions.length > 0 && (
         <div style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: C.gray600 }}>Resume version:</span>
@@ -609,15 +624,18 @@ export default function App() {
                                       onDelete={deleteProfile}
                                     />}
           {active === "tracker"   && <JobTracker jobs={jobs} onSaveJob={handleSaveJob} onDeleteJob={handleDeleteJob} resumeVersions={resumeVersions} />}
-          {active === "apply"     && <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />}
+          {active === "apply"     && <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />}
           {active === "findjobs"  && <FindJobs profile={activeProfile} onQuickApply={goToQuickApplyWithJob} onSaveToTracker={saveJobToTracker} />}
-          {active === "cv"        && <CVTailor profile={activeProfile} resumeVersions={resumeVersions} />}
+          {active === "cv"        && <CVTailor profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} resumeVersions={resumeVersions} />}
           {active === "cover"     && <CoverLetter profile={activeProfile} />}
           {active === "interview" && <InterviewPrep profile={activeProfile} />}
           {active === "salary"    && <SalaryCoach profile={activeProfile} />}
           {active === "linkedin"  && <LinkedInOptimizer profile={activeProfile} />}
           {active === "resume"    && <ResumeEditor
                                       profile={activeProfile}
+                                      profiles={profiles}
+                                      activeProfileId={activeProfileId}
+                                      onSwitchProfile={switchProfile}
                                       quickApplyCV={quickApplyCV}
                                       resumeVersions={resumeVersions}
                                       onSaveVersion={handleSaveResumeVersion}

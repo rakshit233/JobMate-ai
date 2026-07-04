@@ -449,7 +449,7 @@ const AICoach = ({ data, setData }) => {
 
 // ── Helpers ──────────────────────────────────────────────────────
 // ── Version selector bar ───────────────────────────────────────────
-const VersionBar = ({ versions, currentVersionId, onSelect, onSaveAsNew, onSaveCurrent, onRename, onDelete, hasUnsaved }) => {
+const VersionBar = ({ profiles = [], activeProfileId, onSelectProfile, onFillFromProfile, versions, currentVersionId, onSelect, onSaveAsNew, onSaveCurrent, onRename, onDelete, hasUnsaved }) => {
   const [showNewInput, setShowNewInput] = useState(false);
   const [newName, setNewName] = useState("");
   const [renamingId, setRenamingId] = useState(null);
@@ -459,6 +459,25 @@ const VersionBar = ({ versions, currentVersionId, onSelect, onSaveAsNew, onSaveC
 
   return (
     <div style={{ background: C.gray50, borderBottom: `1px solid ${C.gray200}`, padding: "8px 24px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      {profiles.length > 0 && (
+        <>
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em" }}>Profile:</span>
+          <select
+            value={activeProfileId || ""}
+            onChange={e => onSelectProfile(e.target.value)}
+            style={{ padding: "5px 10px", borderRadius: 7, border: `1px solid ${C.gray200}`, fontSize: 12.5, color: C.gray800, background: C.white, fontFamily: UI_FONT, maxWidth: 160 }}
+          >
+            {profiles.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <button onClick={onFillFromProfile}
+            title="Replace the resume below with this profile's saved details"
+            style={{ fontSize: 12, fontWeight: 600, color: C.purple, background: C.purpleLight, border: "none", borderRadius: 6, padding: "5px 11px", cursor: "pointer", fontFamily: UI_FONT }}>
+            ↻ Fill from profile
+          </button>
+          <span style={{ width: 1, height: 18, background: C.gray200 }} />
+        </>
+      )}
+
       <span style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em" }}>Version:</span>
 
       <select
@@ -538,7 +557,7 @@ function profileToResumeData(profile) {
 // ── Main export ──────────────────────────────────────────────────
 // versions / onSaveVersion / onDeleteVersion are optional — editor still works
 // stand-alone (e.g. unauthenticated preview) if they're not passed.
-export default function ResumeEditor({ profile, quickApplyCV, resumeVersions = [], onSaveVersion, onDeleteVersion }) {
+export default function ResumeEditor({ profile, profiles = [], activeProfileId, onSwitchProfile, quickApplyCV, resumeVersions = [], onSaveVersion, onDeleteVersion }) {
   const initialVersion = quickApplyCV ? null : (resumeVersions[0] || null);
 
   const [data, setData] = useState(() => {
@@ -554,14 +573,13 @@ export default function ResumeEditor({ profile, quickApplyCV, resumeVersions = [
   const [currentVersionId, setCurrentVersionId] = useState(initialVersion?.id || null);
   const [lastSavedData, setLastSavedData] = useState(initialVersion?.data || null);
 
-  // Re-seed resume data when profile changes (e.g. user switches active profile,
-  // or fills in profile for the first time), but only if user hasn't selected a
-  // saved resume version — that takes precedence over the profile.
-  useEffect(() => {
-    if (!profile?.name) return;
-    if (currentVersionId) return; // saved version selected — don't overwrite
+  // Explicit profile fill — user picks a profile and presses "Fill from profile".
+  // Never overwrites silently; edits in the editor are always kept until the user acts.
+  const fillFromProfile = () => {
     setData(profileToResumeData(profile));
-  }, [profile?.name, profile?.summary, profile?.skills?.length]);
+    setCurrentVersionId(null);   // becomes an unsaved draft
+    setLastSavedData(null);
+  };
   const [template, setTemplate] = useState("classic");
   const [font, setFont] = useState("georgia");
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SECTION_ORDER);
@@ -631,6 +649,10 @@ export default function ResumeEditor({ profile, quickApplyCV, resumeVersions = [
       {/* Version selector */}
       {onSaveVersion && (
         <VersionBar
+          profiles={profiles}
+          activeProfileId={activeProfileId}
+          onSelectProfile={onSwitchProfile}
+          onFillFromProfile={fillFromProfile}
           versions={resumeVersions}
           currentVersionId={currentVersionId}
           onSelect={selectVersion}

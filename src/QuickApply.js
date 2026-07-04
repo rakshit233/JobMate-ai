@@ -170,7 +170,7 @@ const STEPS = [
   { key: "cover", label: "Writing cover letter...", icon: "✉️" },
 ];
 
-export default function QuickApply({ profile, profiles = [], activeProfileId, onGoToResume, prefillJob }) {
+export default function QuickApply({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, prefillJob }) {
   const [url, setUrl] = useState(prefillJob?.url || "");
   const [jobText, setJobText] = useState(prefillJob?.description || "");
   const [inputMode, setInputMode] = useState(prefillJob?.description ? "paste" : "url");
@@ -179,9 +179,8 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
 
-  // Profile selector — defaults to the active profile, can be overridden per-generation
-  const [selectedProfileId, setSelectedProfileId] = useState(activeProfileId || "");
-  const selectedProfile = profiles.find(p => p.id === selectedProfileId)?.data || profile;
+  // Profile selector — global: picking here switches the app-wide active profile
+  const selectedProfile = profile;
 
   const profileSummary = profileSummaryText(selectedProfile);
 
@@ -247,10 +246,10 @@ Output only the letter text.`,
           {profiles.length > 1 ? (
             <div style={{ background: C.gray50, border: `0.5px solid ${C.gray200}`, borderRadius: 8, padding: "10px 14px", marginBottom: 14, display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 13, color: C.gray600, fontWeight: 500, flexShrink: 0 }}>Using profile:</span>
-              <select value={selectedProfileId} onChange={e => setSelectedProfileId(e.target.value)}
+              <select value={activeProfileId || ""} onChange={e => onSwitchProfile(e.target.value)}
                 style={{ flex: 1, padding: "6px 10px", borderRadius: 7, border: `0.5px solid ${C.gray200}`, fontSize: 13, color: C.gray800, background: C.white, fontFamily: FONT, outline: "none" }}>
                 {profiles.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}{p.id === activeProfileId ? " (active)" : ""}</option>
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
               {selectedProfile?.name && (
@@ -368,7 +367,7 @@ Output only the letter text.`,
               </div>
             </div>
             <div id="cv-doc" style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", maxHeight: 420, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <CVDocument cvText={result.tailoredCV} name={profile?.name} contact={contactLine} />
+              <CVDocument cvText={result.tailoredCV} name={selectedProfile?.name} contact={contactLine} />
             </div>
           </div>
 
