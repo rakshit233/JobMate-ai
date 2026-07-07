@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { getAuthHeader } from "./supabase";
+import { friendlyError } from "./matching";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -17,7 +18,8 @@ const callClaude = async (system, user) => {
     method: "POST", headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || data?.error || `Request failed (${res.status})`);
   return data.content?.[0]?.text || "";
 };
 
@@ -51,13 +53,14 @@ export default function LinkedInOptimizer({ profile }) {
   const [targetRole, setTargetRole] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const profileHint = profile?.name
     ? `Candidate: ${profile.name}. Skills: ${(profile.skills || []).join(", ")}. Experience: ${(profile.experience || []).filter(e => e.company).map(e => `${e.title} at ${e.company}`).join(", ")}.`
     : "";
 
   const optimize = async () => {
-    setLoading(true); setResult(null);
+    setLoading(true); setResult(null); setError("");
     try {
       const raw = await callClaude(
         `You are a LinkedIn optimization expert for the German job market. Analyse and rewrite the profile. Return ONLY valid JSON, no markdown:
@@ -73,7 +76,7 @@ export default function LinkedInOptimizer({ profile }) {
       );
       const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
       setResult(parsed);
-    } catch (e) { console.error(e); }
+    } catch (e) { setError(friendlyError(e)); }
     setLoading(false);
   };
 
@@ -118,6 +121,7 @@ export default function LinkedInOptimizer({ profile }) {
           style={{ width: "100%", padding: 12, borderRadius: 10, background: C.blue, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
           {loading ? <><Spinner /> Optimising your profile...</> : "💼 Optimise for German recruiters"}
         </button>
+        {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
       </div>
 
       {result && (

@@ -13,6 +13,17 @@ export const signInWithGoogle = async () => {
   if (error) console.error('Login error:', error);
 };
 
+// Passwordless email login — Supabase sends a one-time magic link to the address.
+// Returns { error } so the UI can show success vs. failure inline.
+export const signInWithMagicLink = async (email) => {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: window.location.origin }
+  });
+  if (error) console.error('Magic link error:', error);
+  return { error };
+};
+
 export const signOut = async () => {
   await supabase.auth.signOut();
 };
@@ -29,6 +40,65 @@ export const getAuthHeader = async () => {
   const { data } = await supabase.auth.getSession();
   const token = data?.session?.access_token;
   return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+// ── Profiles ─────────────────────────────────────────────────────
+// Table: profiles — see db/schema.sql
+// RLS: enable, policy "users manage own profiles" using (auth.uid() = user_id)
+// Replaces the old localStorage-only "jobmate_profiles" storage so a saved
+// profile is visible anywhere the user is logged in — including the browser
+// extension, which has no access to this site's localStorage.
+
+export const listProfiles = async (userId) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+  if (error) { console.error('listProfiles error:', error); return []; }
+  return data || [];
+};
+
+export const insertProfile = async (userId, name, data = {}, isActive = false) => {
+  const { data: row, error } = await supabase
+    .from('profiles')
+    .insert({ user_id: userId, name, data, is_active: isActive })
+    .select()
+    .single();
+  if (error) { console.error('insertProfile error:', error); return null; }
+  return row;
+};
+
+export const updateProfileFields = async (userId, profileId, fields) => {
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', profileId)
+    .eq('user_id', userId)
+    .select()
+    .single();
+  if (error) { console.error('updateProfileFields error:', error); return null; }
+  return data;
+};
+
+export const deleteProfileRow = async (userId, profileId) => {
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', profileId)
+    .eq('user_id', userId);
+  if (error) { console.error('deleteProfileRow error:', error); return false; }
+  return true;
+};
+
+// Marks exactly one profile as active for this user (unsets all others first).
+export const setActiveProfileRow = async (userId, profileId) => {
+  const { error: e1 } = await supabase
+    .from('profiles').update({ is_active: false }).eq('user_id', userId).neq('id', profileId);
+  const { error: e2 } = await supabase
+    .from('profiles').update({ is_active: true }).eq('id', profileId).eq('user_id', userId);
+  if (e1 || e2) { console.error('setActiveProfileRow error:', e1 || e2); return false; }
+  return true;
 };
 
 // ── Resume versions ────────────────────────────────────────────────

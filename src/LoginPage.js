@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { signInWithGoogle } from "./supabase";
+import { signInWithGoogle, signInWithMagicLink } from "./supabase";
 import { track } from "@vercel/analytics";
 
 // ── Design tokens ─────────────────────────────────────────────────
@@ -32,6 +32,83 @@ const GoogleButton = ({ large }) => (
     </svg>
     {large ? "Start free with Google" : "Sign in"}
   </button>
+);
+
+// Passwordless email login — an alternative to Google for people who don't
+// want to use a Google account. Shows inline success/error, no page reload.
+const MagicLinkForm = ({ compact }) => {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | sending | sent | error
+  const [msg, setMsg] = useState("");
+
+  const submit = async () => {
+    const clean = email.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(clean)) {
+      setStatus("error"); setMsg("Please enter a valid email address."); return;
+    }
+    setStatus("sending"); setMsg("");
+    track("signup_click", { location: "magic_link" });
+    const { error } = await signInWithMagicLink(clean);
+    if (error) {
+      setStatus("error");
+      setMsg(error.message || "Couldn't send the link. Please try again.");
+    } else {
+      setStatus("sent");
+      setMsg(`Check your inbox — we sent a sign-in link to ${clean}.`);
+    }
+  };
+
+  if (status === "sent") {
+    return (
+      <div style={{ marginTop: 14, padding: "12px 16px", borderRadius: 12, background: "rgba(56,189,248,0.08)", border: `1px solid ${T.panelBorder}`, maxWidth: 420 }}>
+        <div style={{ fontSize: 14, color: T.text, fontWeight: 600, marginBottom: 3 }}>✉️ Magic link sent</div>
+        <div style={{ fontSize: 13, color: T.muted, lineHeight: 1.55 }}>{msg}</div>
+        <button onClick={() => { setStatus("idle"); setEmail(""); }}
+          style={{ marginTop: 8, background: "none", border: "none", color: T.cyan, fontSize: 12.5, cursor: "pointer", padding: 0, fontFamily: BODY }}>
+          Use a different email
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 14, maxWidth: 420 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          type="email"
+          value={email}
+          onChange={e => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
+          onKeyDown={e => e.key === "Enter" && submit()}
+          placeholder="you@email.com"
+          style={{
+            flex: "1 1 200px", minWidth: 0, padding: "12px 14px", borderRadius: 10,
+            border: `1px solid ${status === "error" ? "rgba(248,113,113,0.6)" : T.panelBorder}`,
+            background: "rgba(255,255,255,0.04)", color: T.text, fontSize: 14, fontFamily: BODY, outline: "none",
+          }}
+        />
+        <button onClick={submit} disabled={status === "sending"}
+          style={{
+            padding: "12px 20px", borderRadius: 10, border: `1px solid ${T.panelBorder}`,
+            background: "rgba(255,255,255,0.04)", color: T.text, fontSize: 14, fontWeight: 600,
+            cursor: status === "sending" ? "default" : "pointer", fontFamily: BODY, whiteSpace: "nowrap",
+            opacity: status === "sending" ? 0.6 : 1,
+          }}>
+          {status === "sending" ? "Sending…" : "Email me a link"}
+        </button>
+      </div>
+      {status === "error" && <div style={{ marginTop: 7, fontSize: 12.5, color: "#F87171" }}>{msg}</div>}
+      {!compact && status !== "error" && <div style={{ marginTop: 7, fontSize: 12, color: T.faint }}>No password needed — we'll email you a one-time sign-in link.</div>}
+    </div>
+  );
+};
+
+// Divider with "or" label, for separating Google from email login
+const OrDivider = () => (
+  <div style={{ display: "flex", alignItems: "center", gap: 12, maxWidth: 420, margin: "16px 0 2px" }}>
+    <div style={{ flex: 1, height: 1, background: T.panelBorder }} />
+    <span style={{ fontSize: 12, color: T.faint }}>or</span>
+    <div style={{ flex: 1, height: 1, background: T.panelBorder }} />
+  </div>
 );
 
 // Animated counter for the hero match-score ring
@@ -221,6 +298,10 @@ export default function LoginPage() {
               <GoogleButton large />
               <span style={{ fontSize: 13, color: T.faint }}>Free to start · No card needed</span>
             </div>
+            <div className="jm-load jm-load-4">
+              <OrDivider />
+              <MagicLinkForm />
+            </div>
           </div>
           <HeroMock />
         </div>
@@ -316,6 +397,10 @@ export default function LoginPage() {
             Join JobMate free and send your first tailored application in the next ten minutes.
           </p>
           <GoogleButton large />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <OrDivider />
+            <MagicLinkForm compact />
+          </div>
         </Reveal>
       </section>
 

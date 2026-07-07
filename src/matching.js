@@ -12,9 +12,10 @@ export const callClaude = async (system, user, model = HAIKU) => {
   const res = await fetch("/api/claude", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader },
-    body: JSON.stringify({ model, max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
+    body: JSON.stringify({ model, max_tokens: 2000, system, messages: [{ role: "user", content: user }] }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error?.message || data?.error || `Request failed (${res.status})`);
   return data.content?.[0]?.text || "";
 };
 
@@ -97,4 +98,35 @@ export const resumeDataToCVText = (d) => {
     edu ? `\nEDUCATION\n${edu}` : "",
     d.skills ? `\nSKILLS\n${d.skills}` : "",
   ].filter(Boolean).join("\n");
+};
+
+// ── User-facing error messages ───────────────────────────────────
+// Turns raw fetch/JSON/API failures into a short, honest message the user
+// can act on — instead of a spinner that silently dies.
+export const friendlyError = (err) => {
+  const msg = (err && (err.message || err.toString())) || "";
+  if (/credit|billing|balance/i.test(msg)) return "Our AI service is temporarily unavailable. Please try again shortly.";
+  if (/401|unauthor|session|expired/i.test(msg)) return "Your session expired. Please refresh the page and sign in again.";
+  if (/429|rate|too many/i.test(msg)) return "We're getting a lot of requests right now. Please wait a moment and try again.";
+  if (/network|failed to fetch|timeout/i.test(msg)) return "Network hiccup — check your connection and try again.";
+  if (/JSON|parse|unexpected/i.test(msg)) return "The AI response came back malformed. Please try again.";
+  return "Something went wrong. Please try again in a moment.";
+};
+
+// Wraps callClaude so HTTP errors (like 400 out-of-credits) become thrown
+// Errors carrying the real API message, instead of an empty string that
+// silently breaks JSON.parse downstream.
+export const callClaudeChecked = async (system, user, model = HAIKU) => {
+  const authHeader = await getAuthHeader();
+  const res = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeader },
+    body: JSON.stringify({ model, max_tokens: 2000, system, messages: [{ role: "user", content: user }] }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const apiMsg = data?.error?.message || data?.error || `Request failed (${res.status})`;
+    throw new Error(apiMsg);
+  }
+  return data.content?.[0]?.text || "";
 };

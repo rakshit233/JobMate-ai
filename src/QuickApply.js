@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { callClaude, profileSummaryText, scoreJobMatch } from "./matching";
+import { callClaude, profileSummaryText, scoreJobMatch, friendlyError } from "./matching";
 
 const C = {
   navy: "#0F1F3D",
@@ -218,7 +218,7 @@ Output only the letter text.`,
 
       setResult({ jd, score: scoreData, tailoredCV, coverLetter });
     } catch (e) {
-      setError("Something went wrong. If you used a URL, try pasting the job description directly.");
+      setError(friendlyError(e) + " If you used a URL, try pasting the job description directly instead.");
     }
     setLoading(false); setCurrentStep(null);
   };
