@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { signInWithGoogle } from "./supabase";
+import { track } from "@vercel/analytics";
 
 // ── Design tokens ─────────────────────────────────────────────────
 const T = {
@@ -17,7 +18,7 @@ const BODY = "'Inter', system-ui, sans-serif";
 
 // ── Small building blocks ────────────────────────────────────────
 const GoogleButton = ({ large }) => (
-  <button onClick={signInWithGoogle} className="jm-cta"
+  <button onClick={() => { track("signup_click", { location: large ? "hero" : "nav" }); signInWithGoogle(); }} className="jm-cta"
     style={{
       display: "inline-flex", alignItems: "center", gap: 10,
       padding: large ? "15px 30px" : "10px 20px",
