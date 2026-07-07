@@ -408,7 +408,10 @@ export default function LoginPage() {
       <footer style={{ position: "relative", zIndex: 5, borderTop: `1px solid ${T.panelBorder}` }}>
         <div style={{ maxWidth: 1140, margin: "0 auto", padding: "26px 28px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
           <span style={{ fontSize: 12.5, color: T.faint }}>© 2026 JobMate — app.jobmate.tech</span>
-          <span style={{ fontSize: 12.5, color: T.faint }}>Built for English speakers in Germany 🇩🇪</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+            <a href="/privacy" style={{ fontSize: 12.5, color: T.muted, textDecoration: "none" }}>Privacy Policy</a>
+            <span style={{ fontSize: 12.5, color: T.faint }}>Built for English speakers in Germany 🇩🇪</span>
+          </div>
         </div>
       </footer>
     </div>
