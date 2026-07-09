@@ -1,5 +1,23 @@
 -- Run this once in Supabase: Project -> SQL Editor -> New query -> paste -> Run
 
+create table if not exists profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  name text not null,
+  data jsonb not null default '{}'::jsonb,
+  is_active boolean not null default false,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table profiles enable row level security;
+
+create policy "users manage own profiles"
+  on profiles
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 create table if not exists resume_versions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
