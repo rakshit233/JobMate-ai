@@ -59,7 +59,7 @@ const STEPS = [
   { key: "cover", label: "Writing cover letter...", icon: "✉️" },
 ];
 
-export default function QuickApply({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, prefillJob }) {
+export default function QuickApply({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, prefillJob, checkAndConsumeCredit }) {
   const [url, setUrl] = useState(prefillJob?.url || "");
   const [jobText, setJobText] = useState(prefillJob?.description || "");
   const [inputMode, setInputMode] = useState(prefillJob?.description ? "paste" : "url");
@@ -85,6 +85,7 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
   const run = async () => {
     const input = inputMode === "url" ? url.trim() : jobText.trim();
     if (!input) return;
+    if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return;
     setLoading(true); setResult(null); setError("");
     try {
       setCurrentStep("reading");

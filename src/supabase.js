@@ -101,7 +101,58 @@ export const setActiveProfileRow = async (userId, profileId) => {
   return true;
 };
 
-// ── Resume versions ────────────────────────────────────────────────
+// ── Billing (Stripe) ─────────────────────────────────────────────
+// Reads are direct table selects (RLS allows a user to read their own row).
+// Writes always go through server API routes — a user's browser session can
+// never grant itself "pro" by writing to these tables directly.
+
+export const getSubscription = async (userId) => {
+  const { data, error } = await supabase
+    .from('subscriptions').select('plan, status, current_period_end').eq('user_id', userId).maybeSingle();
+  if (error) { console.error('getSubscription error:', error); return null; }
+  return data;
+};
+
+const currentMonthKey = () => new Date().toISOString().slice(0, 7);
+
+export const getUsageThisMonth = async (userId) => {
+  const { data, error } = await supabase
+    .from('usage_counters').select('count').eq('user_id', userId).eq('month', currentMonthKey()).maybeSingle();
+  if (error) { console.error('getUsageThisMonth error:', error); return 0; }
+  return data?.count || 0;
+};
+
+// Call once per gated AI action, BEFORE making the actual AI request(s).
+// Returns { allowed, plan, used, limit, remaining }.
+export const consumeUsageCredit = async () => {
+  const authHeader = await getAuthHeader();
+  const res = await fetch('/api/usage-consume', { method: 'POST', headers: authHeader });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { allowed: false, error: data.error || 'Could not check usage' };
+  return data;
+};
+
+// Redirects the browser to Stripe Checkout for the Pro subscription.
+export const startCheckout = async () => {
+  const authHeader = await getAuthHeader();
+  const res = await fetch('/api/stripe-checkout', { method: 'POST', headers: authHeader });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) { console.error('startCheckout error:', data.error); return false; }
+  window.location.href = data.url;
+  return true;
+};
+
+// Redirects the browser to Stripe's Billing Portal to manage/cancel.
+export const openBillingPortal = async () => {
+  const authHeader = await getAuthHeader();
+  const res = await fetch('/api/stripe-portal', { method: 'POST', headers: authHeader });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) { console.error('openBillingPortal error:', data.error); return false; }
+  window.location.href = data.url;
+  return true;
+};
+
+
 // Table: resume_versions
 //   id uuid pk default gen_random_uuid()
 //   user_id uuid references auth.users not null

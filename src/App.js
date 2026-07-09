@@ -14,7 +14,9 @@ import {
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
   listTrackerEntries, saveTrackerEntry, deleteTrackerEntry,
   listProfiles, insertProfile, updateProfileFields, deleteProfileRow, setActiveProfileRow,
+  getSubscription, getUsageThisMonth, consumeUsageCredit, openBillingPortal,
 } from "./supabase";
+import PricingModal from "./PricingModal";
 
 const C = {
   navy: "#0F1F3D",              // headings only — no longer a surface color
@@ -99,7 +101,7 @@ const ResultBox = ({ content }) => (
 );
 
 // ── CV Tailor ─────────────────────────────────────────────────────
-const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, resumeVersions = [] }) => {
+const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, resumeVersions = [], checkAndConsumeCredit }) => {
   const [cv, setCv] = useState(profileToCVText(profile));
   const [jd, setJd] = useState("");
   const [result, setResult] = useState("");
@@ -197,6 +199,7 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, on
         <Card><Label>Job description</Label><TextArea value={jd} onChange={setJd} placeholder="Paste the full job description..." rows={12} /></Card>
       </div>
       <button onClick={async () => {
+        if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return;
         setLoading(true); setResult(""); setError("");
         try {
           const r = await callClaude(
@@ -257,7 +260,7 @@ Output only the CV text, no commentary.`,
 };
 
 // ── Cover Letter ──────────────────────────────────────────────────
-const CoverLetter = ({ profile }) => {
+const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
   const [name, setName] = useState(profile?.name || "");
   const [role, setRole] = useState("");
   const [company, setCompany] = useState("");
@@ -294,7 +297,7 @@ const CoverLetter = ({ profile }) => {
           </div>
         </Card>
       </div>
-      <button onClick={async () => { setLoading(true); setResult(""); try { const r = await callClaude("Expert cover letter writer for English speakers applying to German companies. Strong hook, connects background to role, confident close. 300-350 words. Output only the letter.", `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}`); setResult(r); } catch(e){} setLoading(false); }} disabled={loading || !name || !role || !company || !bg}
+      <button onClick={async () => { if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return; setLoading(true); setResult(""); try { const r = await callClaude("Expert cover letter writer for English speakers applying to German companies. Strong hook, connects background to role, confident close. 300-350 words. Output only the letter.", `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}`); setResult(r); } catch(e){} setLoading(false); }} disabled={loading || !name || !role || !company || !bg}
         className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Writing...</> : "✨ Generate cover letter"}
       </button>
@@ -464,6 +467,60 @@ export default function App() {
   const profileSaveTimers = useRef({});
 
   const activeProfile = profiles.find(p => p.id === activeProfileId)?.data || EMPTY_PROFILE;
+
+  // ── Billing / paywall ──────────────────────────────────────────
+  const [billing, setBilling] = useState({ plan: "free", remaining: 3, limit: 3 }); // optimistic default
+  const [pricingOpen, setPricingOpen] = useState(false);
+  const [pricingReason, setPricingReason] = useState("manual");
+  const [upgradeToast, setUpgradeToast] = useState(false);
+
+  const refreshBilling = async (uid) => {
+    const id = uid || user?.id;
+    if (!id) return;
+    const [sub, used] = await Promise.all([getSubscription(id), getUsageThisMonth(id)]);
+    const plan = sub?.plan === "pro" && (sub?.status === "active" || sub?.status === "trialing") ? "pro" : "free";
+    setBilling({ plan, remaining: plan === "pro" ? null : Math.max(0, 3 - used), limit: 3, used });
+  };
+
+  useEffect(() => { if (user) refreshBilling(user.id); }, [user]);
+
+  // Coming back from Stripe Checkout: the webhook may take a few seconds to
+  // land, so poll briefly instead of showing stale "free" state.
+  useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("upgraded") === "1") {
+      setUpgradeToast(true);
+      window.history.replaceState({}, "", window.location.pathname);
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        await refreshBilling(user.id);
+        if (attempts >= 6) clearInterval(poll);
+      }, 2000);
+      setTimeout(() => setUpgradeToast(false), 8000);
+      return () => clearInterval(poll);
+    }
+    if (params.get("upgrade_canceled") === "1") {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [user]);
+
+  // Call this before starting any gated AI action (Quick apply, CV tailor,
+  // Cover letter, Resume editor AI Coach). Returns true if the caller should
+  // proceed, false if the paywall was shown instead.
+  const checkAndConsumeCredit = async () => {
+    const result = await consumeUsageCredit();
+    if (result.plan === "pro") { setBilling(b => ({ ...b, plan: "pro", remaining: null })); return true; }
+    if (!result.allowed) {
+      setBilling(b => ({ ...b, plan: "free", remaining: 0 }));
+      setPricingReason("limit");
+      setPricingOpen(true);
+      return false;
+    }
+    setBilling(b => ({ ...b, plan: "free", remaining: result.remaining ?? b.remaining }));
+    return true;
+  };
 
   // One-time migration for existing users: if this account has no profiles
   // in Supabase yet, pull whatever was saved locally (new-format array, then
@@ -652,6 +709,13 @@ export default function App() {
         <div className="ja-orb ja-orb-2" />
       </div>
 
+      <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} reason={pricingReason} remaining={billing.remaining} />
+      {upgradeToast && (
+        <div className="ja-page" style={{ position:"fixed", top:16, right:16, zIndex:310, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, padding:"12px 18px", boxShadow:"0 10px 30px rgba(15,31,61,0.18)", fontSize:13, color:C.navy, fontWeight:600 }}>
+          🎉 Payment received — activating your Pro plan…
+        </div>
+      )}
+
       {/* Mobile top bar */}
       <div className="ja-appbar">
         <button onClick={() => setNavOpen(true)} aria-label="Open menu"
@@ -700,6 +764,23 @@ export default function App() {
           </NavSection>
         </div>
 
+        {/* Plan badge */}
+        <div style={{ padding:"0 12px 10px" }}>
+          {billing.plan === "pro" ? (
+            <button onClick={openBillingPortal}
+              style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderRadius:10, border:`1px solid ${C.accent}30`, background:`linear-gradient(120deg, ${C.accentLight}, rgba(56,189,248,0.08))`, cursor:"pointer", fontFamily:FONT }}>
+              <span style={{ fontSize:12, fontWeight:700, color:C.accent }}>✨ Pro plan</span>
+              <span style={{ fontSize:10.5, color:C.gray400 }}>Manage →</span>
+            </button>
+          ) : (
+            <button onClick={() => { setPricingReason("manual"); setPricingOpen(true); }}
+              style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderRadius:10, border:`0.5px solid ${C.gray200}`, background:C.gray50, cursor:"pointer", fontFamily:FONT }}>
+              <span style={{ fontSize:12, fontWeight:600, color:C.gray600 }}>{billing.remaining ?? 3}/{billing.limit ?? 3} free left</span>
+              <span style={{ fontSize:10.5, fontWeight:700, color:C.accent }}>Upgrade →</span>
+            </button>
+          )}
+        </div>
+
         {/* User footer */}
         <div style={{ padding:"10px 12px", borderTop:`1px solid ${C.gray100}` }}>
           <div style={{ display:"flex", alignItems:"center", gap:9 }}>
@@ -744,16 +825,16 @@ export default function App() {
                                     /></div>}
           {active === "tracker"   && <div key="tracker" className="ja-page"><JobTracker jobs={jobs} onSaveJob={handleSaveJob} onDeleteJob={handleDeleteJob} resumeVersions={resumeVersions} /></div>}
           <div className="ja-page" style={{ display: active === "apply" ? "block" : "none" }}>
-            <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />
+            <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} prefillJob={prefillJob} checkAndConsumeCredit={checkAndConsumeCredit} />
           </div>
           <div className="ja-page" style={{ display: active === "findjobs" ? "block" : "none" }}>
             <FindJobs profile={activeProfile} onQuickApply={goToQuickApplyWithJob} onSaveToTracker={saveJobToTracker} />
           </div>
           <div className="ja-page" style={{ display: active === "cv" ? "block" : "none" }}>
-            <CVTailor profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} resumeVersions={resumeVersions} />
+            <CVTailor profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} resumeVersions={resumeVersions} checkAndConsumeCredit={checkAndConsumeCredit} />
           </div>
           <div className="ja-page" style={{ display: active === "cover" ? "block" : "none" }}>
-            <CoverLetter profile={activeProfile} />
+            <CoverLetter profile={activeProfile} checkAndConsumeCredit={checkAndConsumeCredit} />
           </div>
           {active === "interview" && <div key="interview" className="ja-page"><InterviewPrep profile={activeProfile} /></div>}
           {active === "salary"    && <div key="salary" className="ja-page"><SalaryCoach profile={activeProfile} /></div>}
@@ -763,6 +844,7 @@ export default function App() {
                                       profiles={profiles}
                                       activeProfileId={activeProfileId}
                                       onSwitchProfile={switchProfile}
+                                      checkAndConsumeCredit={checkAndConsumeCredit}
                                       quickApplyCV={quickApplyCV}
                                       resumeVersions={resumeVersions}
                                       onSaveVersion={handleSaveResumeVersion}

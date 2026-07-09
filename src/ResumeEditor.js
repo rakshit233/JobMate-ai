@@ -345,7 +345,7 @@ const QUICK_ACTIONS = [
   { label: "Full ATS scan", prompt: (r) => `Do a comprehensive ATS audit. Score each section out of 10. List top 5 improvements.\n\nResume: ${JSON.stringify(r)}`, field: "chat" },
 ];
 
-const AICoach = ({ data, setData }) => {
+const AICoach = ({ data, setData, checkAndConsumeCredit }) => {
   const [messages, setMessages] = useState([{ role: "assistant", text: "Hi! I'm your AI Resume Coach. Click a quick improvement or ask me anything." }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -372,6 +372,7 @@ const AICoach = ({ data, setData }) => {
   };
 
   const runAction = async (action) => {
+    if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return;
     setActiveAction(action.label); setLoading(true);
     setMessages(m => [...m, { role: "user", text: action.label }]);
     try {
@@ -383,6 +384,7 @@ const AICoach = ({ data, setData }) => {
 
   const sendChat = async () => {
     if (!input.trim() || loading) return;
+    if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return;
     const userText = input.trim(); setInput("");
     setMessages(m => [...m, { role: "user", text: userText }]);
     setLoading(true);
@@ -560,7 +562,7 @@ function profileToResumeData(profile) {
 // ── Main export ──────────────────────────────────────────────────
 // versions / onSaveVersion / onDeleteVersion are optional — editor still works
 // stand-alone (e.g. unauthenticated preview) if they're not passed.
-export default function ResumeEditor({ profile, profiles = [], activeProfileId, onSwitchProfile, quickApplyCV, resumeVersions = [], onSaveVersion, onDeleteVersion }) {
+export default function ResumeEditor({ profile, profiles = [], activeProfileId, onSwitchProfile, quickApplyCV, resumeVersions = [], onSaveVersion, onDeleteVersion, checkAndConsumeCredit }) {
   const initialVersion = quickApplyCV ? null : (resumeVersions[0] || null);
 
   const [data, setData] = useState(() => {
@@ -699,7 +701,7 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
           <div style={{ flex: 1, overflow: "hidden" }}>
             {panelTab === "design"
               ? <DesignPanel template={template} setTemplate={setTemplate} font={font} setFont={setFont} sectionOrder={sectionOrder} setSectionOrder={setSectionOrder} />
-              : <AICoach data={data} setData={setData} />}
+              : <AICoach data={data} setData={setData} checkAndConsumeCredit={checkAndConsumeCredit} />}
           </div>
         </div>
       </div>
