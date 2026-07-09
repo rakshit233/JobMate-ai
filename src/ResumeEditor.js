@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { getAuthHeader } from "./supabase";
+import { downloadWord } from "./cvdoc";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -632,6 +633,11 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
           <h1 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: C.navy, margin: "0 0 2px" }}>Resume editor</h1>
           <p style={{ fontSize: 12, color: C.gray400, margin: 0 }}>Click any text to edit directly • Choose a layout, font and section order on the right</p>
         </div>
+        <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => downloadWord("resume-preview-print", `Resume-${data?.name || "JobMate"}`)}
+          style={{ padding: "8px 18px", borderRadius: 8, background: C.white, color: C.gray600, border: `0.5px solid ${C.gray200}`, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: UI_FONT, display: "flex", alignItems: "center", gap: 6 }}>
+          📄 Word
+        </button>
         <button onClick={() => {
           const win = window.open("", "_blank");
           const el = document.getElementById("resume-preview-print");
@@ -644,8 +650,9 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
           win.document.close(); win.focus();
           setTimeout(() => { win.print(); win.close(); }, 400);
         }} style={{ padding: "8px 18px", borderRadius: 8, background: C.accent, color: C.white, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: UI_FONT, display: "flex", alignItems: "center", gap: 6 }}>
-          📥 Download PDF
+          📥 PDF
         </button>
+        </div>
       </div>
 
       {/* Version selector */}

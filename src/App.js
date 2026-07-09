@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import ResumeEditor from "./ResumeEditor";
 import ProfilePage, { EMPTY_PROFILE } from "./ProfilePage";
 import QuickApply from "./QuickApply";
@@ -7,11 +7,13 @@ import SalaryCoach from "./SalaryCoach";
 import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
-import { profileToCVText, resumeDataToCVText } from "./matching";
+import { profileToCVText, resumeDataToCVText, friendlyError } from "./matching";
+import { CVDocument, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader } from "./cvdoc";
 import {
   supabase, signOut, getAuthHeader,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
   listTrackerEntries, saveTrackerEntry, deleteTrackerEntry,
+  listProfiles, insertProfile, updateProfileFields, deleteProfileRow, setActiveProfileRow,
 } from "./supabase";
 
 const C = {
@@ -97,11 +99,13 @@ const ResultBox = ({ content }) => (
 );
 
 // ── CV Tailor ─────────────────────────────────────────────────────
-const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, resumeVersions = [] }) => {
+const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, resumeVersions = [] }) => {
   const [cv, setCv] = useState(profileToCVText(profile));
   const [jd, setJd] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [cvView, setCvView] = useState("edit"); // edit | preview
   const [selectedVersionId, setSelectedVersionId] = useState(null);
   const [autoMatched, setAutoMatched] = useState(false);
   const [manualFill, setManualFill] = useState(false); // true after user explicitly fills from a profile
@@ -163,14 +167,91 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, re
         </div>
       )}
       <div className="ja-grid2" style={{ gap: 16, marginBottom: 14 }}>
-        <Card><Label>Your current CV</Label><TextArea value={cv} onChange={setCv} placeholder="Paste your full CV text here..." rows={12} /></Card>
+        <Card>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <Label>Your current CV</Label>
+            <div style={{ display: "flex", gap: 4 }}>
+              {["edit", "preview"].map(v => (
+                <button key={v} onClick={() => setCvView(v)}
+                  style={{ padding: "3px 12px", borderRadius: 99, fontSize: 11.5, fontWeight: 600, cursor: "pointer", border: `0.5px solid ${cvView === v ? C.accent : C.gray200}`, background: cvView === v ? C.accentLight : C.white, color: cvView === v ? C.accent : C.gray400, fontFamily: FONT }}>
+                  {v === "edit" ? "✏️ Edit" : "👁 Preview"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {cvView === "edit" ? (
+            <TextArea value={cv} onChange={setCv} placeholder="Paste your full CV text here..." rows={12} />
+          ) : (
+            (() => {
+              const h = splitCVHeader(cv);
+              return (
+                <div style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, maxHeight: 320, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+                  {cv.trim()
+                    ? <CVDocument cvText={h.body} name={h.name || profile?.name} contact={h.contact} />
+                    : <div style={{ padding: 24, fontSize: 13, color: C.gray400, textAlign: "center" }}>Nothing to preview yet — fill or paste your CV first.</div>}
+                </div>
+              );
+            })()
+          )}
+        </Card>
         <Card><Label>Job description</Label><TextArea value={jd} onChange={setJd} placeholder="Paste the full job description..." rows={12} /></Card>
       </div>
-      <button onClick={async () => { setLoading(true); setResult(""); try { const r = await callClaude("You are an expert CV writer for the German job market. Rewrite and tailor the CV to match the job description. ATS-optimised, strong action verbs, concise. Output only the CV text.", `CV:\n${cv}\n\nJD:\n${jd}`); setResult(r); } catch(e){} setLoading(false); }} disabled={loading || !cv.trim() || !jd.trim()}
+      <button onClick={async () => {
+        setLoading(true); setResult(""); setError("");
+        try {
+          const r = await callClaude(
+            `You are an expert CV writer for the German job market. Rewrite and tailor the CV to match the job description. ATS-optimised, strong action verbs, concise.
+CRITICAL RULES:
+- Output PLAIN TEXT only. No markdown: no #, ##, **, or --- lines.
+- Do NOT include the candidate's name or contact details — the document template displays them. Start directly with the SUMMARY section.
+- Sections in order: SUMMARY, WORK EXPERIENCE, EDUCATION, SKILLS. ALL CAPS section headings.
+- Use bullet points (•) for experience items. Use ONLY facts present in the provided CV — never invent employers, dates, or numbers, and never use placeholders like [Phone] or [Email].
+Output only the CV text, no commentary.`,
+            `CV:\n${cv}\n\nJD:\n${jd}\n\nWrite the tailored CV body (no name/contact header).`
+          );
+          setResult(cleanCVText(stripMarkdown(r), splitCVHeader(cv).name || profile?.name));
+        } catch(e){ setError(friendlyError(e)); }
+        setLoading(false);
+      }} disabled={loading || !cv.trim() || !jd.trim()}
         className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Tailoring...</> : "✨ Tailor my CV for this job"}
       </button>
-      {result && <ResultBox content={result} />}
+      {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
+      {result && (() => {
+        const inHeader = splitCVHeader(cv);
+        const docName = inHeader.name || profile?.name || "";
+        const docContact = inHeader.contact || [profile?.email, profile?.phone, profile?.location, profile?.linkedin].filter(Boolean).join(" | ");
+        return (
+          <Card style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>✨ Tailored CV — ready to use</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => navigator.clipboard.writeText(result)}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
+                  📋 Copy text
+                </button>
+                {onGoToResume && (
+                  <button onClick={() => onGoToResume(result, profile)}
+                    style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
+                    ✏️ Edit in Resume editor
+                  </button>
+                )}
+                <button onClick={() => downloadWord("cvtailor-doc", `CV-${docName || "JobMate"}`)}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT, fontWeight: 600 }}>
+                  📄 Word
+                </button>
+                <button onClick={() => printDoc("cvtailor-doc")}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.accent}`, background: C.accentLight, fontSize: 12, cursor: "pointer", color: C.accent, fontFamily: FONT, fontWeight: 600 }}>
+                  📥 PDF
+                </button>
+              </div>
+            </div>
+            <div id="cvtailor-doc" style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", maxHeight: 480, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+              <CVDocument cvText={result} name={docName} contact={docContact} />
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 };
@@ -371,66 +452,100 @@ export default function App() {
   const [active, setActive] = useState("apply");
   const [navOpen, setNavOpen] = useState(false);
   const go = (id) => { setActive(id); setNavOpen(false); };
-  // ── Multi-profile state (up to 4 named profiles) ─────────────
-  const [profiles, setProfiles] = useState(() => {
-    try {
-      const saved = localStorage.getItem("jobmate_profiles");
-      if (saved) return JSON.parse(saved);
-      // Migrate from old single-profile storage
-      const legacy = localStorage.getItem("jobmate_profile");
-      if (legacy) {
-        const legacyProfile = JSON.parse(legacy);
-        return [{ id: "1", name: "Default", data: legacyProfile }];
-      }
-    } catch {}
-    return [{ id: "1", name: "Default", data: EMPTY_PROFILE }];
-  });
-  const [activeProfileId, setActiveProfileId] = useState(() => {
-    try { return localStorage.getItem("jobmate_active_profile_id") || "1"; } catch { return "1"; }
-  });
+  const pageBodyRef = useRef(null);
+  useEffect(() => { pageBodyRef.current?.scrollTo?.({ top: 0 }); }, [active]);
+  // ── Multi-profile state (up to 4 named profiles) — Supabase-backed ──
+  // Profiles used to live only in this browser's localStorage. They now live
+  // in Supabase so the same profile is visible from any logged-in client,
+  // including the browser extension (which can't read this site's localStorage).
+  const [profiles, setProfiles] = useState([]); // [{ id, name, data }]
+  const [activeProfileId, setActiveProfileId] = useState(null);
+  const [profilesLoading, setProfilesLoading] = useState(true);
+  const profileSaveTimers = useRef({});
 
   const activeProfile = profiles.find(p => p.id === activeProfileId)?.data || EMPTY_PROFILE;
 
-  const saveProfiles = (newProfiles, newActiveId) => {
+  // One-time migration for existing users: if this account has no profiles
+  // in Supabase yet, pull whatever was saved locally (new-format array, then
+  // the older single-profile key) and push it up. After this runs once,
+  // Supabase is the only source of truth for this account.
+  const migrateLocalProfiles = async (userId) => {
+    let localProfiles = null;
     try {
-      localStorage.setItem("jobmate_profiles", JSON.stringify(newProfiles));
-      if (newActiveId) localStorage.setItem("jobmate_active_profile_id", newActiveId);
+      const saved = localStorage.getItem("jobmate_profiles");
+      if (saved) localProfiles = JSON.parse(saved);
+      else {
+        const legacy = localStorage.getItem("jobmate_profile");
+        if (legacy) localProfiles = [{ id: "1", name: "Default", data: JSON.parse(legacy) }];
+      }
     } catch {}
+    if (!localProfiles || !localProfiles.length) localProfiles = [{ id: "1", name: "Default", data: EMPTY_PROFILE }];
+
+    let localActiveId;
+    try { localActiveId = localStorage.getItem("jobmate_active_profile_id"); } catch {}
+
+    const inserted = [];
+    for (const p of localProfiles) {
+      const isActive = p.id === localActiveId;
+      const row = await insertProfile(userId, p.name, p.data || EMPTY_PROFILE, isActive);
+      if (row) inserted.push(row);
+    }
+    if (inserted.length && !inserted.some(r => r.is_active)) {
+      await setActiveProfileRow(userId, inserted[0].id);
+      inserted[0].is_active = true;
+    }
+    return inserted;
   };
 
+  useEffect(() => {
+    if (!user) { setProfiles([]); setActiveProfileId(null); return; }
+    setProfilesLoading(true);
+    listProfiles(user.id).then(async (rows) => {
+      const finalRows = rows.length ? rows : await migrateLocalProfiles(user.id);
+      setProfiles(finalRows.map(r => ({ id: r.id, name: r.name, data: r.data || EMPTY_PROFILE })));
+      const active = finalRows.find(r => r.is_active) || finalRows[0];
+      setActiveProfileId(active ? active.id : null);
+    }).finally(() => setProfilesLoading(false));
+  }, [user]);
+
+  // Edits apply to local state immediately so typing feels instant, and are
+  // pushed to Supabase after a short pause so we're not hitting the database
+  // on every keystroke.
   const setActiveProfileData = (data) => {
-    const updated = profiles.map(p => p.id === activeProfileId ? { ...p, data } : p);
-    setProfiles(updated);
-    saveProfiles(updated, activeProfileId);
+    setProfiles(prev => prev.map(p => p.id === activeProfileId ? { ...p, data } : p));
+    if (!user || !activeProfileId) return;
+    clearTimeout(profileSaveTimers.current[activeProfileId]);
+    profileSaveTimers.current[activeProfileId] = setTimeout(() => {
+      updateProfileFields(user.id, activeProfileId, { data });
+    }, 700);
   };
 
   const switchProfile = (id) => {
     setActiveProfileId(id);
-    localStorage.setItem("jobmate_active_profile_id", id);
+    if (user) setActiveProfileRow(user.id, id);
   };
 
-  const addProfile = (name) => {
-    if (profiles.length >= 4) return;
-    const id = Date.now().toString();
-    const newProfiles = [...profiles, { id, name, data: EMPTY_PROFILE }];
-    setProfiles(newProfiles);
-    setActiveProfileId(id);
-    saveProfiles(newProfiles, id);
+  const addProfile = async (name) => {
+    if (!user || profiles.length >= 4) return;
+    const row = await insertProfile(user.id, name, EMPTY_PROFILE, false);
+    if (!row) return;
+    setProfiles(prev => [...prev, { id: row.id, name: row.name, data: row.data || EMPTY_PROFILE }]);
+    switchProfile(row.id);
   };
 
   const renameProfile = (id, name) => {
-    const updated = profiles.map(p => p.id === id ? { ...p, name } : p);
-    setProfiles(updated);
-    saveProfiles(updated, activeProfileId);
+    setProfiles(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+    if (user) updateProfileFields(user.id, id, { name });
   };
 
-  const deleteProfile = (id) => {
-    if (profiles.length <= 1) return; // always keep at least one
+  const deleteProfile = async (id) => {
+    if (profiles.length <= 1 || !user) return; // always keep at least one
     const updated = profiles.filter(p => p.id !== id);
     const newActiveId = activeProfileId === id ? updated[0].id : activeProfileId;
     setProfiles(updated);
     setActiveProfileId(newActiveId);
-    saveProfiles(updated, newActiveId);
+    await deleteProfileRow(user.id, id);
+    if (activeProfileId === id) await setActiveProfileRow(user.id, newActiveId);
   };
   const [quickApplyCV, setQuickApplyCV] = useState(null);
   const [jobs, setJobs] = useState([]);
@@ -611,10 +726,13 @@ export default function App() {
           </div>
         )}
 
-        {/* Page body — key retriggers the fade-in on every tab switch */}
-        <div key={active} className={active === "resume" ? "ja-page" : "ja-page ja-page-pad"} style={{ flex:1, overflowY: active === "resume" ? "hidden" : "auto", padding: active === "resume" ? 0 : "24px 28px" }}>
+        {/* Page body. Quick apply, Find jobs, CV tailor and Cover letter stay
+            mounted and are hidden with CSS so their results and form state
+            survive tab switches. Other pages mount/unmount as before. */}
+        <div ref={pageBodyRef} className={active === "resume" ? "" : "ja-page-pad"} style={{ flex:1, overflowY: active === "resume" ? "hidden" : "auto", padding: active === "resume" ? 0 : "24px 28px" }}>
           {dataLoading && active === "tracker" && <div style={{ fontSize:13, color:C.gray400, marginBottom:12 }}>Loading your applications…</div>}
-          {active === "profile"   && <ProfilePage
+          {profilesLoading && active === "profile" && <div style={{ fontSize:13, color:C.gray400, marginBottom:12 }}>Loading your profiles…</div>}
+          {active === "profile"   && <div key="profile" className="ja-page"><ProfilePage
                                       profiles={profiles}
                                       activeProfileId={activeProfileId}
                                       profile={activeProfile}
@@ -623,15 +741,23 @@ export default function App() {
                                       onAdd={addProfile}
                                       onRename={renameProfile}
                                       onDelete={deleteProfile}
-                                    />}
-          {active === "tracker"   && <JobTracker jobs={jobs} onSaveJob={handleSaveJob} onDeleteJob={handleDeleteJob} resumeVersions={resumeVersions} />}
-          {active === "apply"     && <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />}
-          {active === "findjobs"  && <FindJobs profile={activeProfile} onQuickApply={goToQuickApplyWithJob} onSaveToTracker={saveJobToTracker} />}
-          {active === "cv"        && <CVTailor profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} resumeVersions={resumeVersions} />}
-          {active === "cover"     && <CoverLetter profile={activeProfile} />}
-          {active === "interview" && <InterviewPrep profile={activeProfile} />}
-          {active === "salary"    && <SalaryCoach profile={activeProfile} />}
-          {active === "linkedin"  && <LinkedInOptimizer profile={activeProfile} />}
+                                    /></div>}
+          {active === "tracker"   && <div key="tracker" className="ja-page"><JobTracker jobs={jobs} onSaveJob={handleSaveJob} onDeleteJob={handleDeleteJob} resumeVersions={resumeVersions} /></div>}
+          <div className="ja-page" style={{ display: active === "apply" ? "block" : "none" }}>
+            <QuickApply profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} prefillJob={prefillJob} />
+          </div>
+          <div className="ja-page" style={{ display: active === "findjobs" ? "block" : "none" }}>
+            <FindJobs profile={activeProfile} onQuickApply={goToQuickApplyWithJob} onSaveToTracker={saveJobToTracker} />
+          </div>
+          <div className="ja-page" style={{ display: active === "cv" ? "block" : "none" }}>
+            <CVTailor profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} onGoToResume={goToResumeEditor} resumeVersions={resumeVersions} />
+          </div>
+          <div className="ja-page" style={{ display: active === "cover" ? "block" : "none" }}>
+            <CoverLetter profile={activeProfile} />
+          </div>
+          {active === "interview" && <div key="interview" className="ja-page"><InterviewPrep profile={activeProfile} /></div>}
+          {active === "salary"    && <div key="salary" className="ja-page"><SalaryCoach profile={activeProfile} /></div>}
+          {active === "linkedin"  && <div key="linkedin" className="ja-page"><LinkedInOptimizer profile={activeProfile} /></div>}
           {active === "resume"    && <ResumeEditor
                                       profile={activeProfile}
                                       profiles={profiles}

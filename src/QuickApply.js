@@ -1,5 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { callClaude, profileSummaryText, scoreJobMatch, friendlyError } from "./matching";
+import { getAuthHeader } from "./supabase";
+import { CVDocument, CoverLetterDocument, printDoc, downloadWord, cleanCVText, stripMarkdown } from "./cvdoc";
 
 const C = {
   navy: "#0F1F3D",
@@ -32,119 +34,6 @@ const Spinner = () => (
 );
 
 // ── CV Document Renderer ─────────────────────────────────────────
-const CVDocument = ({ cvText, name, contact }) => {
-  const lines = cvText.split("\n");
-  const sections = [];
-  let current = null;
-
-  lines.forEach(line => {
-    const trimmed = line.trim();
-    if (!trimmed) return;
-    if (trimmed === trimmed.toUpperCase() && trimmed.length > 3 && !trimmed.includes("|") && !trimmed.match(/^\+/)) {
-      if (current) sections.push(current);
-      current = { heading: trimmed, items: [] };
-    } else {
-      if (!current) current = { heading: null, items: [] };
-      current.items.push(trimmed);
-    }
-  });
-  if (current) sections.push(current);
-
-  return (
-    <div style={{ background: C.white, padding: "20mm 18mm", fontFamily: "Georgia, serif", fontSize: 11.5, lineHeight: 1.6, color: "#1a1a1a" }}>
-      {/* Header */}
-      <div style={{ textAlign: "center", marginBottom: 16, borderBottom: "2px solid #1E293B", paddingBottom: 12 }}>
-        <div style={{ fontSize: 20, fontWeight: 700, color: "#0F1F3D", letterSpacing: "-0.01em" }}>{name || "Your Name"}</div>
-        <div style={{ fontSize: 11, color: "#475569", marginTop: 3, fontFamily: "Arial, sans-serif" }}>{contact || ""}</div>
-      </div>
-      {sections.map((sec, i) => (
-        <div key={i} style={{ marginBottom: 12 }}>
-          {sec.heading && (
-            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "#1E293B", borderBottom: "1.5px solid #1E293B", paddingBottom: 2, marginBottom: 6 }}>
-              {sec.heading}
-            </div>
-          )}
-          {sec.items.map((item, j) => {
-            const isBullet = item.startsWith("•") || item.startsWith("-");
-            const isDate = item.match(/\d{2}\/\d{4}/);
-            return (
-              <div key={j} style={{
-                fontSize: isBullet ? 11 : 12,
-                marginBottom: isBullet ? 2 : 4,
-                paddingLeft: isBullet ? 12 : 0,
-                color: isBullet ? "#334155" : "#1a1a1a",
-                fontWeight: isDate ? 400 : item.includes("|") ? 700 : 400,
-                fontStyle: item.includes("—") || item.includes("·") ? "italic" : "normal",
-                fontFamily: isBullet || isDate ? "Arial, sans-serif" : "Georgia, serif",
-              }}>
-                {item.replace(/^[-•]\s*/, isBullet ? "• " : "")}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-};
-
-// ── Cover Letter Document Renderer ───────────────────────────────
-const CoverLetterDocument = ({ text }) => {
-  const paragraphs = text.split("\n").filter(l => l.trim());
-  return (
-    <div style={{ background: C.white, padding: "20mm 18mm", fontFamily: "Georgia, serif", fontSize: 12.5, lineHeight: 1.75, color: "#1a1a1a" }}>
-      {paragraphs.map((para, i) => {
-        const isHeader = i < 4 && !para.startsWith("Dear") && !para.match(/^[A-Z][a-z]/);
-        const isGreeting = para.startsWith("Dear");
-        const isSignoff = para.startsWith("Yours") || para.startsWith("Best") || para.startsWith("Kind");
-        return (
-          <div key={i} style={{
-            marginBottom: isGreeting || isSignoff ? 16 : 8,
-            fontFamily: isHeader ? "Arial, sans-serif" : "Georgia, serif",
-            fontSize: isHeader ? 11 : 12.5,
-            color: isHeader ? "#475569" : "#1a1a1a",
-            borderBottom: i === 0 ? "1px solid #E2E8F0" : "none",
-            paddingBottom: i === 0 ? 12 : 0,
-            marginTop: i === 0 ? 0 : undefined,
-          }}>
-            {para}
-          </div>
-        );
-      })}
-    </div>
-  );
-};
-
-// ── PDF Download ─────────────────────────────────────────────────
-const downloadPDF = (elementId, filename) => {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const content = el.innerText;
-  const blob = new Blob([content], { type: "text/plain" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-const printDoc = (elementId) => {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-  const win = window.open("", "_blank");
-  win.document.write(`
-    <html><head><title>JobMate Document</title>
-    <style>
-      @page { margin: 0; size: A4; }
-      @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
-      html, body { margin: 0; padding: 0; height: auto !important; font-family: Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; overflow: hidden; }
-      * { box-sizing: border-box; }
-    </style></head>
-    <body>${el.innerHTML}</body></html>
-  `);
-  win.document.close();
-  win.focus();
-  setTimeout(() => { win.print(); win.close(); }, 500);
-};
 
 // ── Score Ring ───────────────────────────────────────────────────
 const ScoreRing = ({ score }) => {
@@ -174,6 +63,15 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
   const [url, setUrl] = useState(prefillJob?.url || "");
   const [jobText, setJobText] = useState(prefillJob?.description || "");
   const [inputMode, setInputMode] = useState(prefillJob?.description ? "paste" : "url");
+
+  // Quick Apply stays mounted across tab switches, so a new job handed over
+  // from Find Jobs arrives as a prop change, not a fresh mount — apply it here.
+  useEffect(() => {
+    if (!prefillJob) return;
+    if (prefillJob.description) { setJobText(prefillJob.description); setInputMode("paste"); }
+    else if (prefillJob.url) { setUrl(prefillJob.url); setInputMode("url"); }
+    setResult(null); setError("");
+  }, [prefillJob]);
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(null);
   const [result, setResult] = useState(null);
@@ -190,35 +88,63 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
     setLoading(true); setResult(null); setError("");
     try {
       setCurrentStep("reading");
-      let jd = inputMode === "paste" ? input : await callClaude(
-        "You cannot browse URLs. Based on the URL domain provided, generate a realistic, detailed job description for a relevant role. Output only the job description text.",
-        `URL: ${input}\nGenerate a realistic job description for this company.`
-      );
+
+      let jd;
+      if (inputMode === "paste") {
+        jd = input;
+      } else {
+        // Fetch and read the real posting. We never invent a job description:
+        // if the page can't be read, we tell the user and stop.
+        const authHeader = await getAuthHeader();
+        const res = await fetch(`/api/fetch-job?url=${encodeURIComponent(input)}`, { headers: authHeader });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setError(data.error || "We couldn't read that link. Please paste the job description instead.");
+          setLoading(false);
+          setCurrentStep(null);
+          if (data.code === "BLOCKED_SOURCE" || data.code === "TOO_SHORT") setInputMode("paste");
+          return;
+        }
+        jd = data.text;
+      }
 
       setCurrentStep("scoring");
       const scoreData = await scoreJobMatch(selectedProfile, jd);
 
       setCurrentStep("cv");
       const tailoredCV = await callClaude(
-        `You are an expert CV writer for the German job market. Create a clean, ATS-optimised CV. 
-Format it with clear sections: start with the person's name and contact on top, then SUMMARY, WORK EXPERIENCE, EDUCATION, SKILLS.
-Use bullet points (•) for experience items. Use ALL CAPS for section headings. Keep it professional.
+        `You are an expert CV writer for the German job market. Create a clean, ATS-optimised CV body.
+CRITICAL RULES:
+- Do NOT include the candidate's name or any contact details — the document template already displays them. Start directly with the SUMMARY section.
+- Use ONLY information provided in the CANDIDATE section. NEVER invent details and NEVER use placeholders like [Phone], [Email], [Address], or "TBD". If a piece of information is not provided, omit it entirely.
+- Sections in order: SUMMARY, WORK EXPERIENCE, EDUCATION, SKILLS. ALL CAPS section headings.
+- Use bullet points (•) for experience items. No empty bullets, no filler like "--".
 Output only the CV text, no commentary.`,
-        `CANDIDATE:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite a tailored CV.`
+        `CANDIDATE:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite the tailored CV body (no name/contact header).`
       );
 
       setCurrentStep("cover");
+      const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+      const contactDetails = [
+        selectedProfile?.name,
+        selectedProfile?.email,
+        selectedProfile?.phone,
+        selectedProfile?.location,
+        selectedProfile?.linkedin,
+      ].filter(Boolean).join(" | ") || "Not provided";
       const coverLetter = await callClaude(
-        `Write a compelling, Germany-ready cover letter. 
-Start with the candidate name and contact details, then date, then salutation.
-Write 3-4 strong paragraphs. End with 'Yours sincerely,' and the name.
-Output only the letter text.`,
-        `CANDIDATE:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite a tailored cover letter.`
+        `Write a compelling, Germany-ready cover letter.
+CRITICAL RULES:
+- Use ONLY the contact details explicitly provided below. NEVER use placeholders like [Phone], [Email], [Address], [Company Address]. If a detail is not provided, leave it out completely.
+- Structure: candidate's name and provided contact details at top, then the date, then salutation ("Dear Hiring Team," if no name is known), then 3-4 strong paragraphs, then "Yours sincerely," and the candidate's name.
+- Do not include the employer's postal address block.
+Output only the letter text, no commentary.`,
+        `CANDIDATE CONTACT (use exactly these, nothing more): ${contactDetails}\nTODAY'S DATE: ${today}\n\nCANDIDATE BACKGROUND:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite the tailored cover letter.`
       );
 
-      setResult({ jd, score: scoreData, tailoredCV, coverLetter });
+      setResult({ jd, score: scoreData, tailoredCV: cleanCVText(stripMarkdown(tailoredCV), selectedProfile?.name), coverLetter: cleanCVText(stripMarkdown(coverLetter), null) });
     } catch (e) {
-      setError(friendlyError(e) + " If you used a URL, try pasting the job description directly instead.");
+      setError(friendlyError(e));
     }
     setLoading(false); setCurrentStep(null);
   };
@@ -272,10 +198,15 @@ Output only the letter text.`,
           </div>
 
           {inputMode === "url" ? (
-            <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://www.linkedin.com/jobs/view/..."
-              style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: `0.5px solid ${C.gray200}`, fontSize: 14, color: C.gray800, fontFamily: FONT, outline: "none" }}
-              onFocus={e => e.target.style.borderColor = C.accent} onBlur={e => e.target.style.borderColor = C.gray200}
-              onKeyDown={e => e.key === "Enter" && run()} />
+            <>
+              <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://boards.greenhouse.io/... or a company careers page"
+                style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: `0.5px solid ${C.gray200}`, fontSize: 14, color: C.gray800, fontFamily: FONT, outline: "none" }}
+                onFocus={e => e.target.style.borderColor = C.accent} onBlur={e => e.target.style.borderColor = C.gray200}
+                onKeyDown={e => e.key === "Enter" && run()} />
+              <div style={{ marginTop: 7, fontSize: 11.5, color: C.gray400, lineHeight: 1.5 }}>
+                Works with most job boards and careers pages. LinkedIn and Glassdoor block automated access — for those, use “Paste job description”.
+              </div>
+            </>
           ) : (
             <textarea value={jobText} onChange={e => setJobText(e.target.value)} placeholder="Paste the full job description here..." rows={6}
               style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: `0.5px solid ${C.gray200}`, fontSize: 14, color: C.gray800, fontFamily: FONT, outline: "none", resize: "vertical", lineHeight: 1.6 }}
@@ -355,14 +286,22 @@ Output only the letter text.`,
           <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "18px 22px", marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.navy, display: "flex", alignItems: "center", gap: 7 }}>📄 Tailored CV</div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => { if (onGoToResume) onGoToResume(result.tailoredCV, selectedProfile); }}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
+                  ✏️ Edit in Resume editor
+                </button>
                 <button onClick={() => navigator.clipboard.writeText(result.tailoredCV)}
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
                   📋 Copy text
                 </button>
+                <button onClick={() => downloadWord("cv-doc", `CV-${selectedProfile?.name || "JobMate"}`)}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT, fontWeight: 600 }}>
+                  📄 Word
+                </button>
                 <button onClick={() => printDoc("cv-doc")}
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.accent}`, background: C.accentLight, fontSize: 12, cursor: "pointer", color: C.accent, fontFamily: FONT, fontWeight: 600 }}>
-                  📥 Download PDF
+                  📥 PDF
                 </button>
               </div>
             </div>
@@ -380,9 +319,13 @@ Output only the letter text.`,
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
                   📋 Copy text
                 </button>
+                <button onClick={() => downloadWord("cl-doc", `Cover-Letter-${selectedProfile?.name || "JobMate"}`)}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT, fontWeight: 600 }}>
+                  📄 Word
+                </button>
                 <button onClick={() => printDoc("cl-doc")}
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.accent}`, background: C.accentLight, fontSize: 12, cursor: "pointer", color: C.accent, fontFamily: FONT, fontWeight: 600 }}>
-                  📥 Download PDF
+                  📥 PDF
                 </button>
               </div>
             </div>
