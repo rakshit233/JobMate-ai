@@ -58,11 +58,31 @@ export default async function handler(req, res) {
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params.toString()}`;
 
   try {
-    const response = await fetch(url);
-    const data = await response.json();
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+
+    // Read the body as text first so a non-JSON error page (rate-limit HTML,
+    // gateway error, etc.) doesn't throw inside .json() and get mislabelled
+    // as a network failure.
+    const bodyText = await response.text();
+    let data;
+    try {
+      data = JSON.parse(bodyText);
+    } catch {
+      // Adzuna returned something that isn't JSON — surface its status + a snippet.
+      return res.status(response.status || 502).json({
+        error: response.status === 429
+          ? "Adzuna rate limit reached. Please wait a minute and try again."
+          : "Adzuna returned an unexpected response.",
+        status: response.status,
+        details: bodyText.slice(0, 200),
+      });
+    }
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: data.exception || "Adzuna API error" });
+      return res.status(response.status).json({
+        error: data.exception || data.error || "Adzuna API error",
+        status: response.status,
+      });
     }
 
     const jobs = (data.results || []).map(j => ({
@@ -82,6 +102,6 @@ export default async function handler(req, res) {
 
     res.status(200).json({ jobs, count: data.count || jobs.length });
   } catch (err) {
-    res.status(500).json({ error: "Failed to reach Adzuna API", details: err.message });
+    res.status(502).json({ error: "Failed to reach Adzuna API", details: err.message });
   }
 }
