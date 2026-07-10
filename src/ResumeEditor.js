@@ -224,8 +224,8 @@ const ResumePreview = ({ data, setData, template, font, sectionOrder }) => {
     const sidebarKeys = ["skills"];
     const mainKeys = sectionOrder.filter(k => !sidebarKeys.includes(k));
     return (
-      <div style={{ background: C.white, width: "100%", minHeight: "100%", fontFamily: fontCss, fontSize: 13, lineHeight: 1.55, color: "#1a1a1a", boxShadow: "0 4px 24px rgba(0,0,0,0.10)", display: "flex" }}>
-        <div style={{ width: "32%", background: "#F8FAFC", padding: "32px 18px", borderRight: `2px solid ${accentColor}` }}>
+      <div className="resume-page resume-page--two-col" style={{ background: C.white, width: "100%", minHeight: "100%", fontFamily: fontCss, fontSize: 13, lineHeight: 1.55, color: "#1a1a1a", boxShadow: "0 4px 24px rgba(0,0,0,0.10)", display: "flex" }}>
+        <div className="resume-sidebar" style={{ width: "32%", background: "#F8FAFC", padding: "32px 18px", borderRight: `2px solid ${accentColor}` }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: accentColor, marginBottom: 4, lineHeight: 1.3 }}>
             <Editable value={data.name} onChange={v => setData({ ...data, name: v })} />
           </div>
@@ -237,7 +237,7 @@ const ResumePreview = ({ data, setData, template, font, sectionOrder }) => {
             return SectionComp ? <SectionComp key={key} data={data} setData={setData} accentColor={accentColor} sectionStyle="spacing" /> : null;
           })}
         </div>
-        <div style={{ flex: 1, padding: "32px 28px" }}>
+        <div className="resume-main" style={{ flex: 1, padding: "32px 28px" }}>
           {mainKeys.map(key => {
             const SectionComp = SECTION_COMPONENTS[key];
             return SectionComp ? <SectionComp key={key} data={data} setData={setData} accentColor={accentColor} sectionStyle={tpl.sectionStyle} /> : null;
@@ -248,7 +248,7 @@ const ResumePreview = ({ data, setData, template, font, sectionOrder }) => {
   }
 
   return (
-    <div style={{ background: C.white, width: "100%", padding: "20mm 18mm", fontFamily: fontCss, fontSize: 11.5, lineHeight: 1.55, color: "#1a1a1a", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
+    <div className="resume-page resume-page--single" style={{ background: C.white, width: "100%", padding: "20mm 18mm", fontFamily: fontCss, fontSize: 11.5, lineHeight: 1.55, color: "#1a1a1a", boxShadow: "0 4px 24px rgba(0,0,0,0.10)" }}>
       {headerBlock}
       {sectionsContent}
       <div className="no-print" style={{ marginTop: 20, fontSize: 10, color: C.gray300, textAlign: "center", fontFamily: UI_FONT }}>
@@ -645,10 +645,24 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
           const win = window.open("", "_blank");
           const el = document.getElementById("resume-preview-print");
           win.document.write(`<html><head><title>Resume</title><style>
-            @page { margin: 0; size: A4; }
+            /* @page margin repeats on EVERY physical page automatically — this
+               is what gives page 2+ the same breathing room as page 1, instead
+               of content starting flush against the paper edge. */
+            @page { margin: 20mm 18mm; size: A4; }
             @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
-            html, body { margin: 0; padding: 0; height: auto !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; overflow: hidden; }
+            html, body { margin: 0; padding: 0; height: auto !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; }
             * { box-sizing: border-box; }
+            /* The on-screen preview bakes its own mm padding + card shadow into
+               one wrapping div so it looks like a page while editing. In print,
+               @page margin above already reserves that space on every page, so
+               the div's own padding/shadow would double it up on page 1 and,
+               worse, was confusing the browser's page-break height calculation
+               (removing "overflow:hidden" here specifically fixed content
+               jumping to page 2 while leaving page 1 partly blank). */
+            .resume-page { box-shadow: none !important; }
+            .resume-page--single { padding: 0 !important; }
+            .resume-page--two-col { padding: 0 !important; }
+            .resume-sidebar, .resume-main { padding: 0 !important; }
           </style></head><body style="margin:0;padding:0">${el.innerHTML}</body></html>`);
           win.document.close(); win.focus();
           setTimeout(() => { win.print(); win.close(); }, 400);
