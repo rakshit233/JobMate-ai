@@ -22,6 +22,20 @@ export const FREE_MONTHLY_LIMIT = 3;
 
 const currentMonth = () => new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 
+// Reads a row that may legitimately not exist yet (a free user has no
+// subscription row; a user who hasn't generated this month has no usage row).
+// "No rows found" is a normal state, NOT an error — only real database
+// failures (permissions, connectivity, bad schema) are surfaced.
+const readOptionalRow = async (query, label) => {
+  const { data, error } = await query.maybeSingle();
+  if (error) {
+    // PGRST116 = "JSON object requested, multiple (or no) rows returned"
+    if (error.code === "PGRST116") return null;
+    throw new Error(`${label} read failed: ${error.message}`);
+  }
+  return data;
+};
+
 // Reads plan + this month's usage without consuming anything.
 // Throws on any database error — callers turn that into a 500 rather than
 // silently reporting wrong numbers.
@@ -29,16 +43,13 @@ export const getUsageState = async (userId) => {
   const admin = getAdminClient();
   const month = currentMonth();
 
-  const [subRes, usageRes] = await Promise.all([
-    admin.from("subscriptions").select("plan, status").eq("user_id", userId).maybeSingle(),
-    admin.from("usage_counters").select("count").eq("user_id", userId).eq("month", month).maybeSingle(),
+  const [sub, usage] = await Promise.all([
+    readOptionalRow(admin.from("subscriptions").select("plan, status").eq("user_id", userId), "subscriptions"),
+    readOptionalRow(admin.from("usage_counters").select("count").eq("user_id", userId).eq("month", month), "usage_counters"),
   ]);
-  if (subRes.error) throw new Error(`subscriptions read failed: ${subRes.error.message}`);
-  if (usageRes.error) throw new Error(`usage_counters read failed: ${usageRes.error.message}`);
 
-  const sub = subRes.data;
   const isPro = sub?.plan === "pro" && (sub?.status === "active" || sub?.status === "trialing");
-  const used = usageRes.data?.count || 0;
+  const used = usage?.count || 0;
   return {
     plan: isPro ? "pro" : "free",
     used,
@@ -56,9 +67,8 @@ export const consumeCredit = async (userId) => {
   const admin = getAdminClient();
   const month = currentMonth();
 
-  const { data: sub, error: subErr } = await admin
-    .from("subscriptions").select("plan, status").eq("user_id", userId).maybeSingle();
-  if (subErr) throw new Error(`subscriptions read failed: ${subErr.message}`);
+  const sub = await readOptionalRow(
+    admin.from("subscriptions").select("plan, status").eq("user_id", userId), "subscriptions");
 
   const isPro = sub?.plan === "pro" && (sub?.status === "active" || sub?.status === "trialing");
   if (isPro) return { allowed: true, plan: "pro", used: null, limit: null, remaining: null };
