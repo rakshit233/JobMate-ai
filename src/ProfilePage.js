@@ -43,7 +43,7 @@ const Label = ({ children, required }) => (
   </label>
 );
 
-const Field = ({ label, value, onChange, placeholder, required, multiline, rows = 3 }) => (
+const Field = ({ label, value, onChange, placeholder, required, multiline, rows = 3, error }) => (
   <div>
     <Label required={required}>{label}</Label>
     {multiline ? (
@@ -54,11 +54,12 @@ const Field = ({ label, value, onChange, placeholder, required, multiline, rows 
       />
     ) : (
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-        style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${C.gray200}`, fontSize: 13, color: C.gray800, background: C.white, outline: "none", fontFamily: FONT }}
-        onFocus={e => e.target.style.borderColor = C.accent}
-        onBlur={e => e.target.style.borderColor = C.gray200}
+        style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: `1.5px solid ${error ? "#F87171" : C.gray200}`, fontSize: 13, color: C.gray800, background: C.white, outline: "none", fontFamily: FONT }}
+        onFocus={e => e.target.style.borderColor = error ? "#F87171" : C.accent}
+        onBlur={e => e.target.style.borderColor = error ? "#F87171" : C.gray200}
       />
     )}
+    {error && <div style={{ marginTop: 4, fontSize: 11.5, color: "#DC2626" }}>{error}</div>}
   </div>
 );
 
@@ -375,8 +376,10 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
           <Field label="Email" value={profile.email} onChange={v => setProfile({ ...profile, email: v })} placeholder="your@email.com" />
           <Field label="Phone" value={profile.phone} onChange={v => setProfile({ ...profile, phone: v })} placeholder="+49 123 456 789" />
           <Field label="Location" value={profile.location} onChange={v => setProfile({ ...profile, location: v })} placeholder="Berlin, Germany" />
-          <Field label="LinkedIn URL" value={profile.linkedin} onChange={v => setProfile({ ...profile, linkedin: v })} placeholder="linkedin.com/in/yourname" />
-          <Field label="Portfolio / Website" value={profile.portfolio} onChange={v => setProfile({ ...profile, portfolio: v })} placeholder="yourwebsite.com" />
+          <Field label="LinkedIn URL" value={profile.linkedin} onChange={v => setProfile({ ...profile, linkedin: v })} placeholder="linkedin.com/in/yourname"
+            error={profile.linkedin?.trim() && !isLinkedInUrl(profile.linkedin) ? "Enter a valid LinkedIn link, e.g. linkedin.com/in/yourname — invalid links are left out of your CV" : ""} />
+          <Field label="Portfolio / Website" value={profile.portfolio} onChange={v => setProfile({ ...profile, portfolio: v })} placeholder="yourwebsite.com"
+            error={profile.portfolio?.trim() && !isLikelyUrl(profile.portfolio) ? "Enter a valid link, e.g. yourwebsite.com — invalid links are left out of your CV" : ""} />
         </div>
         <div style={{ marginTop: 14 }}>
           <Field label="Professional summary" multiline rows={4} value={profile.summary} onChange={v => setProfile({ ...profile, summary: v })} placeholder="A brief 2-3 sentence summary of your professional background and goals..." />

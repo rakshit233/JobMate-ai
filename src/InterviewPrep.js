@@ -69,6 +69,9 @@ const QuestionGenerator = ({ profile, jd, setJd, onGenerated, loading, setLoadin
         style={{ width: "100%", marginTop: 10, padding: 12, borderRadius: 10, background: C.purple, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Generating questions...</> : "🎤 Generate interview questions"}
       </button>
+      {!loading && !jd.trim() && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.gray400, textAlign: "center" }}>Paste a job description to generate questions.</div>
+      )}
     </div>
   );
 };

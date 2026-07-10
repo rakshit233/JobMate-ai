@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { getAuthHeader } from "./supabase";
 import { downloadWord } from "./cvdoc";
+import { safeLink } from "./matching";
 
 const C = {
   navy: "#0F1F3D", accent: "#2563EB", accentLight: "#EFF6FF", accentBorder: "#BFDBFE",
@@ -551,7 +552,7 @@ function profileToResumeData(profile) {
   if (!profile || !profile.name) return DEFAULT;
   return {
     name: profile.name || DEFAULT.name,
-    contact: [profile.email, profile.phone, profile.linkedin, profile.location].filter(Boolean).join(" | ") || DEFAULT.contact,
+    contact: [profile.email, profile.phone, safeLink(profile.linkedin), profile.location].filter(Boolean).join(" | ") || DEFAULT.contact,
     summary: profile.summary || DEFAULT.summary,
     education: profile.education?.filter(e => e.school).map(e => ({ school: e.school, degree: [e.degree, e.field].filter(Boolean).join(" · "), location: e.location, dates: [e.startDate, e.endDate || (e.current ? "Present" : "")].filter(Boolean).join(" – ") })) || DEFAULT.education,
     experience: profile.experience?.filter(e => e.company).map(e => ({ company: e.company, title: e.title, location: e.location, dates: [e.startDate, e.current ? "Present" : e.endDate].filter(Boolean).join(" – "), bullets: e.bullets?.filter(b => b.trim()) || [""] })) || DEFAULT.experience,

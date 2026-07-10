@@ -121,25 +121,35 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
   const [englishOnly, setEnglishOnly] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  const search = async () => {
-    setLoading(true); setError(""); setJobs([]); setSearched(true);
+  const [filteredOut, setFilteredOut] = useState(0); // jobs hidden by the English-only filter
+
+  const search = async (englishOverride) => {
+    const useEnglishFilter = typeof englishOverride === "boolean" ? englishOverride : englishOnly;
+    setLoading(true); setError(""); setJobs([]); setSearched(true); setFilteredOut(0);
     try {
       const params = new URLSearchParams({ keyword, location, remote });
       const authHeader = await getAuthHeader();
-      const res = await fetch(`/api/adzuna?${params.toString()}`, { headers: authHeader });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Search failed");
+      const res = await fetch(`/api/adzuna?${params.toString()}`, {
+        headers: authHeader,
+        signal: AbortSignal.timeout(30000),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const detail = data.details ? ` (${String(data.details).slice(0, 120)})` : "";
+        throw new Error((data.error || "Search failed") + detail);
+      }
 
-      setLoading(false);
       setTotalCount(data.count || 0);
 
       let results = data.jobs || [];
+      const rawCount = results.length;
 
       // Client-side English filter — if enabled, show only listings flagged english-friendly
       // or where the title itself looks international (common in Berlin startup ecosystem)
-      if (englishOnly) {
+      if (useEnglishFilter) {
         const internationalTitlePattern = /\b(engineer|developer|manager|analyst|designer|scientist|consultant|lead|head|director|coordinator|specialist|advisor)\b/i;
         results = results.filter(j => j.englishFriendly || internationalTitlePattern.test(j.title));
+        setFilteredOut(rawCount - results.length);
       }
 
       if (results.length === 0) { setJobs([]); return; }
@@ -152,13 +162,18 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
         } catch {
           setJobs(results.map(j => ({ ...j, matchScore: null })));
         }
-        setScoring(false);
       } else {
         setJobs(results.map(j => ({ ...j, matchScore: null })));
       }
     } catch (e) {
-      setError(e.message || "Something went wrong. Please try again.");
+      const msg = e.name === "TimeoutError"
+        ? "The search took too long to respond. Please try again."
+        : (e.message || "Something went wrong. Please try again.");
+      setError(msg);
+    } finally {
+      // Whatever happens, never leave a spinner running.
       setLoading(false);
+      setScoring(false);
     }
   };
 
@@ -205,7 +220,7 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
           <span style={{ fontSize: 11, color: C.gray400 }}>— filters for listings that mention English or have international job titles</span>
         </div>
 
-        <button onClick={search} disabled={loading} className="ja-cta"
+        <button onClick={() => search()} disabled={loading} className="ja-cta"
           style={{ width: "100%", padding: 12, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: loading ? "not-allowed" : "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
           {loading ? <><Spinner /> Searching jobs in Germany...</> : "🔍 Search jobs"}
         </button>
@@ -232,6 +247,15 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
       )}
 
       {/* Empty state */}
+      {!loading && searched && jobs.length === 0 && !error && filteredOut > 0 && (
+        <div style={{ background: C.amberLight || "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "#92400E", marginBottom: 12 }}>
+          Found {filteredOut} job{filteredOut === 1 ? "" : "s"}, but the English-only filter hid {filteredOut === 1 ? "it" : "them all"}.{" "}
+          <button onClick={() => { setEnglishOnly(false); search(false); }}
+            style={{ background: "none", border: "none", color: "#92400E", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontFamily: FONT, fontSize: 13, padding: 0 }}>
+            Show all results
+          </button>
+        </div>
+      )}
       {!loading && searched && jobs.length === 0 && !error && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400, fontSize: 14, background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}` }}>
           <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>

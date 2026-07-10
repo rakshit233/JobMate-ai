@@ -127,6 +127,9 @@ export default function SalaryCoach({ profile }) {
             style={{ width: "100%", marginTop: 14, padding: 12, borderRadius: 10, background: C.amber, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
             {loading ? <><Spinner /> Researching salaries...</> : "💰 Get salary guidance"}
           </button>
+          {!loading && !role.trim() && (
+            <div style={{ marginTop: 8, fontSize: 12, color: C.gray400, textAlign: "center" }}>Enter a role to get salary guidance.</div>
+          )}
           {error && <div style={{ marginTop: 10, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
         </div>
 

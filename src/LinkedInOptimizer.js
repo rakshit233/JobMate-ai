@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getAuthHeader } from "./supabase";
 import { friendlyError } from "./matching";
 
@@ -51,6 +51,15 @@ export default function LinkedInOptimizer({ profile }) {
   const [about, setAbout] = useState("");
   const [headline, setHeadline] = useState("");
   const [targetRole, setTargetRole] = useState("");
+
+  // Pre-fill from the saved profile once it loads (this tab mounts before
+  // Supabase profiles arrive). Only fills untouched fields.
+  useEffect(() => {
+    const latestRole = profile?.experience?.find(e => e.title)?.title;
+    if (latestRole && !headline) setHeadline(latestRole);
+    if (profile?.summary && !about) setAbout(profile.summary);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.name, profile?.summary]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -121,6 +130,9 @@ export default function LinkedInOptimizer({ profile }) {
           style={{ width: "100%", padding: 12, borderRadius: 10, background: C.blue, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
           {loading ? <><Spinner /> Optimising your profile...</> : "💼 Optimise for German recruiters"}
         </button>
+        {!loading && !about.trim() && !headline.trim() && (
+          <div style={{ marginTop: 8, fontSize: 12, color: C.gray400, textAlign: "center" }}>Add your current headline or about section to optimise.</div>
+        )}
         {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
       </div>
 

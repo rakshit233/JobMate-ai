@@ -10,6 +10,7 @@ const HAIKU  = "claude-haiku-4-5-20251001";
 export const callClaude = async (system, user, model = HAIKU) => {
   const authHeader = await getAuthHeader();
   const res = await fetch("/api/claude", {
+    signal: AbortSignal.timeout(90000), // never hang a spinner forever
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeader },
     body: JSON.stringify({ model, max_tokens: 2000, system, messages: [{ role: "user", content: user }] }),
@@ -65,7 +66,7 @@ export const scoreJobBatch = async (profile, jobs) => {
 // Turn a saved profile into full CV text (used to pre-fill CV Tailor).
 export const profileToCVText = (profile) => {
   if (!profile?.name) return "";
-  const contact = [profile.email, profile.phone, profile.location, profile.linkedin, profile.portfolio].filter(Boolean).join(" | ");
+  const contact = [profile.email, profile.phone, profile.location, safeLink(profile.linkedin), safeLink(profile.portfolio)].filter(Boolean).join(" | ");
   const exp = (profile.experience || []).filter(e => e.company).map(e =>
     `${e.title || ""} — ${e.company}${e.location ? `, ${e.location}` : ""} (${e.startDate || ""}–${e.current ? "Present" : e.endDate || ""})\n${(e.bullets || []).filter(b => b && b.trim()).map(b => `• ${b}`).join("\n")}`
   ).join("\n\n");
@@ -130,3 +131,19 @@ export const callClaudeChecked = async (system, user, model = HAIKU) => {
   }
   return data.content?.[0]?.text || "";
 };
+
+
+// ── Link validation ──────────────────────────────────────────────
+// Loose URL check: accepts "linkedin.com/in/x" and "https://x.dev" alike.
+export const isLikelyUrl = (v) => {
+  if (!v || !v.trim()) return false;
+  const s = v.trim();
+  if (/\s/.test(s)) return false;
+  return /^(https?:\/\/)?([\w-]+\.)+[a-z]{2,}(\/[^\s]*)?$/i.test(s);
+};
+
+export const isLinkedInUrl = (v) => isLikelyUrl(v) && /linkedin\.com\//i.test(v);
+
+// Returns the link if it's plausibly a URL, otherwise "" — used when building
+// CV/letter text so junk typed into link fields never reaches a document.
+export const safeLink = (v) => (isLikelyUrl(v) ? v.trim() : "");

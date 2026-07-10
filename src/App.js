@@ -7,7 +7,7 @@ import SalaryCoach from "./SalaryCoach";
 import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
-import { profileToCVText, resumeDataToCVText, friendlyError } from "./matching";
+import { profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
 import { CVDocument, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader } from "./cvdoc";
 import {
   supabase, signOut, getAuthHeader,
@@ -103,6 +103,13 @@ const ResultBox = ({ content }) => (
 // ── CV Tailor ─────────────────────────────────────────────────────
 const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, onGoToResume, resumeVersions = [], checkAndConsumeCredit }) => {
   const [cv, setCv] = useState(profileToCVText(profile));
+
+  // Same late-load race as CoverLetter: seed the CV box once the profile
+  // actually arrives from Supabase, but never overwrite user-entered text.
+  useEffect(() => {
+    if (profile?.name && !cv.trim()) setCv(profileToCVText(profile));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.name]);
   const [jd, setJd] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
@@ -219,11 +226,16 @@ Output only the CV text, no commentary.`,
         className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Tailoring...</> : "✨ Tailor my CV for this job"}
       </button>
+      {!loading && (!cv.trim() || !jd.trim()) && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.gray400, textAlign: "center" }}>
+          Add {[!cv.trim() && "your CV", !jd.trim() && "the job description"].filter(Boolean).join(" and ")} to enable tailoring.
+        </div>
+      )}
       {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
       {result && (() => {
         const inHeader = splitCVHeader(cv);
         const docName = inHeader.name || profile?.name || "";
-        const docContact = inHeader.contact || [profile?.email, profile?.phone, profile?.location, profile?.linkedin].filter(Boolean).join(" | ");
+        const docContact = inHeader.contact || [profile?.email, profile?.phone, profile?.location, safeLink(profile?.linkedin)].filter(Boolean).join(" | ");
         return (
           <Card style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
@@ -265,10 +277,21 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
   const [role, setRole] = useState("");
   const [company, setCompany] = useState("");
   const [bg, setBg] = useState(profile?.summary || "");
+
+  // This tab stays mounted from app load, which can be BEFORE profiles
+  // finish loading from Supabase — so the initial useState seeding sees an
+  // empty profile. Seed again when the data arrives, but only into fields
+  // the user hasn't touched.
+  useEffect(() => {
+    if (profile?.name && !name) setName(profile.name);
+    if (profile?.summary && !bg) setBg(profile.summary);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.name, profile?.summary]);
   const [jd, setJd] = useState("");
   const [tone, setTone] = useState("professional");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   return (
     <div>
@@ -297,10 +320,16 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
           </div>
         </Card>
       </div>
-      <button onClick={async () => { if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return; setLoading(true); setResult(""); try { const r = await callClaude("Expert cover letter writer for English speakers applying to German companies. Strong hook, connects background to role, confident close. 300-350 words. Output only the letter.", `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}`); setResult(r); } catch(e){} setLoading(false); }} disabled={loading || !name || !role || !company || !bg}
+      <button onClick={async () => { if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return; setLoading(true); setResult(""); setError(""); try { const r = await callClaude("Expert cover letter writer for English speakers applying to German companies. Strong hook, connects background to role, confident close. 300-350 words. Output only the letter.", `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}`); setResult(r); } catch(e){ setError(friendlyError(e)); } setLoading(false); }} disabled={loading || !name || !role || !company || !bg}
         className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Writing...</> : "✨ Generate cover letter"}
       </button>
+      {!loading && (!name || !role || !company || !bg) && (
+        <div style={{ marginTop: 8, fontSize: 12, color: C.gray400, textAlign: "center" }}>
+          Fill in {[!name && "your name", !role && "the role", !company && "the company", !bg && "your background"].filter(Boolean).join(", ")} to enable generation.
+        </div>
+      )}
+      {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
       {result && <ResultBox content={result} />}
     </div>
   );
@@ -368,7 +397,7 @@ const JobTracker = ({ jobs, onSaveJob, onDeleteJob, resumeVersions }) => {
                     {STATUSES.map(s => <option key={s}>{s}</option>)}
                   </select>
                 </td>
-                <td style={{ padding:"10px 14px", fontSize:11, color:C.gray600 }}>{versionName(job.resume_version_id)}</td>
+                <td title={versionName(job.resume_version_id)} style={{ padding:"10px 14px", fontSize:11, color:C.gray600, maxWidth:140, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{versionName(job.resume_version_id)}</td>
                 <td style={{ padding:"10px 14px", fontSize:12, color:C.gray400, maxWidth:120, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{job.notes||"—"}</td>
                 <td style={{ padding:"10px 14px", whiteSpace:"nowrap" }}>
                   <button onClick={() => { setForm({...job}); setEditId(job.id); setShowForm(true); }} style={{ background:"none", border:"none", cursor:"pointer", color:C.accent, fontSize:12, fontWeight:600, marginRight:8, fontFamily:FONT }}>Edit</button>

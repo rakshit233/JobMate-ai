@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { callClaude, profileSummaryText, scoreJobMatch, friendlyError } from "./matching";
+import { callClaude, profileSummaryText, scoreJobMatch, friendlyError, safeLink } from "./matching";
 import { getAuthHeader } from "./supabase";
 import { CVDocument, CoverLetterDocument, printDoc, downloadWord, cleanCVText, stripMarkdown } from "./cvdoc";
 
@@ -84,8 +84,26 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
 
   const run = async () => {
     const input = inputMode === "url" ? url.trim() : jobText.trim();
-    if (!input) return;
-    if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return;
+    if (!input) {
+      setError(inputMode === "url" ? "Paste a job posting URL first." : "Paste the job description first.");
+      return;
+    }
+
+    // URL mode: validate BEFORE spending anything — an invalid link should
+    // never fire an API call or consume a credit.
+    let normalizedUrl = null;
+    if (inputMode === "url") {
+      const candidate = /^https?:\/\//i.test(input) ? input : `https://${input}`;
+      try {
+        const parsed = new URL(candidate);
+        if (!parsed.hostname.includes(".")) throw new Error("no TLD");
+        normalizedUrl = parsed.toString();
+      } catch {
+        setError("That doesn't look like a valid link. Check the URL, or paste the job description instead.");
+        return;
+      }
+    }
+
     setLoading(true); setResult(null); setError("");
     try {
       setCurrentStep("reading");
@@ -94,10 +112,14 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
       if (inputMode === "paste") {
         jd = input;
       } else {
-        // Fetch and read the real posting. We never invent a job description:
-        // if the page can't be read, we tell the user and stop.
+        // Fetch and read the real posting FIRST — the credit is only consumed
+        // once we actually have a job description in hand. A dead link, a
+        // blocked site, or a login wall costs the user nothing.
         const authHeader = await getAuthHeader();
-        const res = await fetch(`/api/fetch-job?url=${encodeURIComponent(input)}`, { headers: authHeader });
+        const res = await fetch(`/api/fetch-job?url=${encodeURIComponent(normalizedUrl)}`, {
+          headers: authHeader,
+          signal: AbortSignal.timeout(20000),
+        });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           setError(data.error || "We couldn't read that link. Please paste the job description instead.");
@@ -107,6 +129,14 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
           return;
         }
         jd = data.text;
+      }
+
+      // Job description secured — NOW consume the credit, right before the
+      // AI calls it pays for.
+      if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) {
+        setLoading(false);
+        setCurrentStep(null);
+        return;
       }
 
       setCurrentStep("scoring");
@@ -131,7 +161,7 @@ Output only the CV text, no commentary.`,
         selectedProfile?.email,
         selectedProfile?.phone,
         selectedProfile?.location,
-        selectedProfile?.linkedin,
+        safeLink(selectedProfile?.linkedin),
       ].filter(Boolean).join(" | ") || "Not provided";
       const coverLetter = await callClaude(
         `Write a compelling, Germany-ready cover letter.
@@ -151,7 +181,7 @@ Output only the letter text, no commentary.`,
   };
 
   const contactLine = selectedProfile?.name
-    ? [selectedProfile.email, selectedProfile.phone, selectedProfile.linkedin, selectedProfile.location].filter(Boolean).join(" | ")
+    ? [selectedProfile.email, selectedProfile.phone, safeLink(selectedProfile.linkedin), selectedProfile.location].filter(Boolean).join(" | ")
     : "";
 
   return (
