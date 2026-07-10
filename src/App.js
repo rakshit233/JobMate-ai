@@ -482,7 +482,7 @@ export default function App() {
     setBilling({ plan, remaining: plan === "pro" ? null : Math.max(0, 3 - used), limit: 3, used });
   };
 
-  useEffect(() => { if (user) refreshBilling(user.id); }, [user]);
+  useEffect(() => { if (user) refreshBilling(user.id); }, [user?.id]);
 
   // Coming back from Stripe Checkout: the webhook may take a few seconds to
   // land, so poll briefly instead of showing stale "free" state.
@@ -504,13 +504,16 @@ export default function App() {
     if (params.get("upgrade_canceled") === "1") {
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Call this before starting any gated AI action (Quick apply, CV tailor,
   // Cover letter, Resume editor AI Coach). Returns true if the caller should
   // proceed, false if the paywall was shown instead.
   const checkAndConsumeCredit = async () => {
     const result = await consumeUsageCredit();
+    // Server/network problem: let the user work, don't touch the badge, never
+    // show the paywall for our own errors.
+    if (result.degraded) return true;
     if (result.plan === "pro") { setBilling(b => ({ ...b, plan: "pro", remaining: null })); return true; }
     if (!result.allowed) {
       setBilling(b => ({ ...b, plan: "free", remaining: 0 }));
@@ -563,7 +566,7 @@ export default function App() {
       const active = finalRows.find(r => r.is_active) || finalRows[0];
       setActiveProfileId(active ? active.id : null);
     }).finally(() => setProfilesLoading(false));
-  }, [user]);
+  }, [user?.id]);
 
   // Edits apply to local state immediately so typing feels instant, and are
   // pushed to Supabase after a short pause so we're not hitting the database
@@ -632,7 +635,7 @@ export default function App() {
         setResumeVersions(versionData);
       })
       .finally(() => setDataLoading(false));
-  }, [user]);
+  }, [user?.id]);
 
   const goToResumeEditor = (cvText) => { setQuickApplyCV(cvText); setActive("resume"); };
 

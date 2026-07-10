@@ -125,11 +125,21 @@ export const getUsageThisMonth = async (userId) => {
 // Call once per gated AI action, BEFORE making the actual AI request(s).
 // Returns { allowed, plan, used, limit, remaining }.
 export const consumeUsageCredit = async () => {
-  const authHeader = await getAuthHeader();
-  const res = await fetch('/api/usage-consume', { method: 'POST', headers: authHeader });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) return { allowed: false, error: data.error || 'Could not check usage' };
-  return data;
+  try {
+    const authHeader = await getAuthHeader();
+    const res = await fetch('/api/usage-consume', { method: 'POST', headers: authHeader });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      // A server/network problem is OUR bug, not the user hitting their limit.
+      // Never show the paywall for it — let the action proceed and log it.
+      console.warn('usage-consume failed, allowing action:', data.error || res.status);
+      return { allowed: true, degraded: true };
+    }
+    return data;
+  } catch (e) {
+    console.warn('usage-consume unreachable, allowing action:', e.message);
+    return { allowed: true, degraded: true };
+  }
 };
 
 // Redirects the browser to Stripe Checkout for the Pro subscription.
