@@ -58,7 +58,6 @@ export default function LinkedInOptimizer({ profile }) {
     const latestRole = profile?.experience?.find(e => e.title)?.title;
     if (latestRole && !headline) setHeadline(latestRole);
     if (profile?.summary && !about) setAbout(profile.summary);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.name, profile?.summary]);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);

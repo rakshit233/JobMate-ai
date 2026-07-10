@@ -108,7 +108,6 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, on
   // actually arrives from Supabase, but never overwrite user-entered text.
   useEffect(() => {
     if (profile?.name && !cv.trim()) setCv(profileToCVText(profile));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.name]);
   const [jd, setJd] = useState("");
   const [result, setResult] = useState("");
@@ -285,7 +284,6 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
   useEffect(() => {
     if (profile?.name && !name) setName(profile.name);
     if (profile?.summary && !bg) setBg(profile.summary);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.name, profile?.summary]);
   const [jd, setJd] = useState("");
   const [tone, setTone] = useState("professional");
