@@ -8,7 +8,7 @@ import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
 import { profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
-import { CVDocument, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader } from "./cvdoc";
+import { CVDocument, CoverLetterTemplate, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader } from "./cvdoc";
 import {
   supabase, signOut, getAuthHeader,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
@@ -318,7 +318,24 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
           </div>
         </Card>
       </div>
-      <button onClick={async () => { if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return; setLoading(true); setResult(""); setError(""); try { const r = await callClaude("Expert cover letter writer for English speakers applying to German companies. Strong hook, connects background to role, confident close. 300-350 words. Output only the letter.", `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}`); setResult(r); } catch(e){ setError(friendlyError(e)); } setLoading(false); }} disabled={loading || !name || !role || !company || !bg}
+      <button onClick={async () => {
+        if (checkAndConsumeCredit && !(await checkAndConsumeCredit())) return;
+        setLoading(true); setResult(""); setError("");
+        try {
+          const r = await callClaude(
+            `Expert cover letter writer for English speakers applying to German companies.
+CRITICAL RULES:
+- Output ONLY the body paragraphs — no name, no date, no "Dear Hiring Manager", no company address, no sign-off. The document template supplies all of that separately.
+- 3-4 strong paragraphs: a hook connecting the candidate to the role, evidence from their background, why this company, and a confident close.
+- Use ONLY facts from the background provided. Never invent employers, numbers, or achievements not given.
+- Plain text, no markdown, no bullet points.
+Output only the letter's paragraph text, nothing else.`,
+            `Name:${name}\nRole:${role}\nCompany:${company}\nBackground:${bg}\nJD:${jd}\nTone:${tone}\n\nWrite the letter body only.`
+          );
+          setResult(stripMarkdown(r));
+        } catch(e){ setError(friendlyError(e)); }
+        setLoading(false);
+      }} disabled={loading || !name || !role || !company || !bg}
         className="ja-cta" style={{ width: "100%", padding: 13, borderRadius: 10, background: C.accent, color: C.white, fontSize: 14, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: DISPLAY, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: loading ? 0.7 : 1 }}>
         {loading ? <><Spinner /> Writing...</> : "✨ Generate cover letter"}
       </button>
@@ -328,7 +345,39 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
         </div>
       )}
       {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
-      {result && <ResultBox content={result} />}
+      {result && (() => {
+        const contactLine = [profile?.email, profile?.phone, profile?.location, safeLink(profile?.linkedin)].filter(Boolean).join(" | ");
+        return (
+          <Card style={{ marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>✨ Cover letter — ready to use</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={() => navigator.clipboard.writeText(result)}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
+                  📋 Copy text
+                </button>
+                <button onClick={() => downloadWord("coverletter-doc", `Cover-Letter-${name || "JobMate"}`)}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT, fontWeight: 600 }}>
+                  📄 Word
+                </button>
+                <button onClick={() => printDoc("coverletter-doc")}
+                  style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.accent}`, background: C.accentLight, fontSize: 12, cursor: "pointer", color: C.accent, fontFamily: FONT, fontWeight: 600 }}>
+                  📥 PDF
+                </button>
+              </div>
+            </div>
+            <div id="coverletter-doc" style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", maxHeight: 480, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+              <CoverLetterTemplate
+                name={name}
+                role={role}
+                company={company}
+                contact={contactLine}
+                body={result}
+              />
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 };

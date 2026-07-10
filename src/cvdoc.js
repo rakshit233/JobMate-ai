@@ -143,7 +143,59 @@ const CoverLetterDocument = ({ text }) => {
   );
 };
 
-// ── PDF Download ─────────────────────────────────────────────────
+// ── Structured Cover Letter Template ────────────────────────────────
+// Unlike CoverLetterDocument above (which guesses structure from raw AI
+// text), this renders a fixed, polished layout from data the app already
+// has — name, role, contact, company, date come from the form/profile, not
+// the AI. Only `body` (the letter's paragraphs) comes from the model. This
+// avoids ever trusting AI-generated text to format a header correctly, and
+// matches a standard modern cover-letter layout: bold name, role subtitle,
+// contact block, divider, recipient + date row, salutation, paragraphs, sign-off.
+const CoverLetterTemplate = ({ name, role, contact, hiringManager = "Hiring Manager", company, companyAddress, date, body, signoff = "Warmest regards," }) => {
+  const paragraphs = (body || "")
+    .split(/\n\s*\n/)
+    .map(p => p.replace(/\n/g, " ").trim())
+    .filter(Boolean);
+  const contactLines = (contact || "").split("|").map(s => s.trim()).filter(Boolean);
+  const today = date || new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  return (
+    <div style={{ background: "#FFFFFF", padding: "20mm 18mm", fontFamily: "'Inter', 'Helvetica Neue', Arial, sans-serif", fontSize: 12.5, lineHeight: 1.65, color: "#1a1a1a" }}>
+      {/* Header: name + role + contact */}
+      <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.01em", color: "#0F172A" }}>{name || "Your Name"}</div>
+      {role && <div style={{ fontSize: 14.5, fontWeight: 700, color: "#334155", marginTop: 3 }}>{role}</div>}
+      {contactLines.length > 0 && (
+        <div style={{ marginTop: 10, fontSize: 11.5, color: "#64748B", lineHeight: 1.6 }}>
+          {contactLines.map((line, i) => <div key={i}>{line}</div>)}
+        </div>
+      )}
+      <div style={{ height: 2, background: "#0F172A", marginTop: 16, marginBottom: 20 }} />
+
+      {/* Recipient + date */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
+        <div style={{ fontSize: 12 }}>
+          <div style={{ fontWeight: 700 }}>{hiringManager}</div>
+          {company && <div style={{ fontWeight: 700 }}>{company}</div>}
+          {companyAddress && <div style={{ color: "#64748B", marginTop: 1 }}>{companyAddress}</div>}
+        </div>
+        <div style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{today}</div>
+      </div>
+
+      <div style={{ fontWeight: 600, marginBottom: 14 }}>Dear {hiringManager},</div>
+
+      {paragraphs.map((p, i) => (
+        <p key={i} style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.75 }}>{p}</p>
+      ))}
+
+      <div style={{ marginTop: 10 }}>
+        <div>{signoff}</div>
+        <div style={{ fontWeight: 700, marginTop: 2 }}>{name || "Your Name"}</div>
+      </div>
+    </div>
+  );
+};
+
+
 const downloadPDF = (elementId, filename) => {
   const el = document.getElementById(elementId);
   if (!el) return;
@@ -198,4 +250,4 @@ export const downloadWord = (elementId, filename = "document") => {
   URL.revokeObjectURL(url);
 };
 
-export { cleanCVText, CVDocument, CoverLetterDocument, downloadPDF, printDoc };
+export { cleanCVText, CVDocument, CoverLetterDocument, CoverLetterTemplate, downloadPDF, printDoc };
