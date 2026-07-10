@@ -23,17 +23,22 @@ export const FREE_MONTHLY_LIMIT = 3;
 const currentMonth = () => new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 
 // Reads plan + this month's usage without consuming anything.
+// Throws on any database error — callers turn that into a 500 rather than
+// silently reporting wrong numbers.
 export const getUsageState = async (userId) => {
   const admin = getAdminClient();
   const month = currentMonth();
 
-  const [{ data: sub }, { data: usage }] = await Promise.all([
+  const [subRes, usageRes] = await Promise.all([
     admin.from("subscriptions").select("plan, status").eq("user_id", userId).maybeSingle(),
     admin.from("usage_counters").select("count").eq("user_id", userId).eq("month", month).maybeSingle(),
   ]);
+  if (subRes.error) throw new Error(`subscriptions read failed: ${subRes.error.message}`);
+  if (usageRes.error) throw new Error(`usage_counters read failed: ${usageRes.error.message}`);
 
+  const sub = subRes.data;
   const isPro = sub?.plan === "pro" && (sub?.status === "active" || sub?.status === "trialing");
-  const used = usage?.count || 0;
+  const used = usageRes.data?.count || 0;
   return {
     plan: isPro ? "pro" : "free",
     used,
@@ -44,31 +49,37 @@ export const getUsageState = async (userId) => {
 
 // Atomically consumes one credit for the current month, unless the user is
 // on an active/trialing pro plan (unlimited) or has already hit the limit.
-// Returns the same shape as getUsageState, plus `allowed`.
+// Uses the consume_usage_credit Postgres function so the check-and-increment
+// happens in a single statement — two simultaneous requests can never both
+// slip past the limit. Throws on database errors.
 export const consumeCredit = async (userId) => {
   const admin = getAdminClient();
   const month = currentMonth();
 
-  const { data: sub } = await admin.from("subscriptions").select("plan, status").eq("user_id", userId).maybeSingle();
+  const { data: sub, error: subErr } = await admin
+    .from("subscriptions").select("plan, status").eq("user_id", userId).maybeSingle();
+  if (subErr) throw new Error(`subscriptions read failed: ${subErr.message}`);
+
   const isPro = sub?.plan === "pro" && (sub?.status === "active" || sub?.status === "trialing");
   if (isPro) return { allowed: true, plan: "pro", used: null, limit: null, remaining: null };
 
-  // Single upsert that only increments if under the limit. Postgres evaluates
-  // the WHERE clause against the row as it stands before this statement, so
-  // two near-simultaneous requests can't both sneak through past the limit.
-  const { data: existing } = await admin
-    .from("usage_counters").select("count").eq("user_id", userId).eq("month", month).maybeSingle();
+  const { data: newCount, error: rpcErr } = await admin.rpc("consume_usage_credit", {
+    p_user_id: userId,
+    p_month: month,
+    p_limit: FREE_MONTHLY_LIMIT,
+  });
+  if (rpcErr) throw new Error(`consume_usage_credit failed: ${rpcErr.message}`);
 
-  const used = existing?.count || 0;
-  if (used >= FREE_MONTHLY_LIMIT) {
-    return { allowed: false, plan: "free", used, limit: FREE_MONTHLY_LIMIT, remaining: 0 };
+  if (newCount === null || newCount === undefined) {
+    // Limit already reached — nothing was consumed.
+    return { allowed: false, plan: "free", used: FREE_MONTHLY_LIMIT, limit: FREE_MONTHLY_LIMIT, remaining: 0 };
   }
 
-  const newCount = used + 1;
-  await admin.from("usage_counters").upsert(
-    { user_id: userId, month, count: newCount, updated_at: new Date().toISOString() },
-    { onConflict: "user_id,month" }
-  );
-
-  return { allowed: true, plan: "free", used: newCount, limit: FREE_MONTHLY_LIMIT, remaining: FREE_MONTHLY_LIMIT - newCount };
+  return {
+    allowed: true,
+    plan: "free",
+    used: newCount,
+    limit: FREE_MONTHLY_LIMIT,
+    remaining: Math.max(0, FREE_MONTHLY_LIMIT - newCount),
+  };
 };
