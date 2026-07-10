@@ -59,6 +59,24 @@ create policy "users read own usage"
   for select
   using (auth.uid() = user_id);
 
+-- Atomically consume one credit. Insert-or-increment in a single statement,
+-- so two simultaneous requests can never both sneak past the limit.
+-- Returns the new count, or NULL when the limit was already reached.
+create or replace function consume_usage_credit(p_user_id uuid, p_month text, p_limit int)
+returns int
+language plpgsql
+as $$
+declare new_count int;
+begin
+  insert into usage_counters (user_id, month, count, updated_at)
+  values (p_user_id, p_month, 1, now())
+  on conflict (user_id, month)
+  do update set count = usage_counters.count + 1, updated_at = now()
+  where usage_counters.count < p_limit
+  returning count into new_count;
+  return new_count;
+end $$;
+
 create table if not exists resume_versions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
