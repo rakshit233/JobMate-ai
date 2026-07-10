@@ -26,34 +26,23 @@ export default async function handler(req, res) {
   // "what_or" = any of these words appear in the listing (broad match)
   // "what" = all words must appear (strict match — too restrictive for english filter)
   // Strategy: use "what" for the user's keyword, "what_or" to bias toward english roles
+  // Keep the query simple: one `what` for the user's keyword. The previous
+  // version combined what + what_and + what_or, which over-constrained the
+  // search (all conditions are ANDed by Adzuna) and could zero out results.
+  // English-friendliness is handled client-side, where we can explain it.
   const params = new URLSearchParams({
     app_id: appId,
     app_key: appKey,
     results_per_page: "20",
-    what: baseKeyword || englishSignal,      // user keyword, fallback to "english"
-    where: location || "Germany",            // default to all of Germany if blank
-    content_type: "application/json",
+    what: baseKeyword || englishSignal,
+    where: location || "Germany",
     sort_by: "relevance",
   });
 
-  // If user typed a keyword, add english as a secondary phrase filter
-  // so we get roles where the listing itself mentions "english"
-  if (baseKeyword) {
-    params.set("what_and", baseKeyword);     // all words in keyword must appear
-    params.set("what", baseKeyword);
-    // Add "english" as an OR term to surface English-friendly listings higher
-    params.set("what_or", `${baseKeyword} english international`);
-  }
-
-  // Remote filter: append to keyword phrase
-  if (remote === "remote") {
-    const current = params.get("what_or") || "";
-    params.set("what_or", `${current} remote`.trim());
-  }
-  if (remote === "hybrid") {
-    const current = params.get("what_or") || "";
-    params.set("what_or", `${current} hybrid`.trim());
-  }
+  // Remote/hybrid preference: fold into the keyword rather than adding
+  // more AND constraints.
+  if (remote === "remote") params.set("what", `${params.get("what")} remote`.trim());
+  if (remote === "hybrid") params.set("what", `${params.get("what")} hybrid`.trim());
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params.toString()}`;
 
