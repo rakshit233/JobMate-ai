@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { isLikelyUrl, isLinkedInUrl } from "./matching";
 
 const C = {
   navy: "#0F1F3D",
