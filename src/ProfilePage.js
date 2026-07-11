@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { isLikelyUrl, isLinkedInUrl } from "./matching";
+import { getAuthHeader } from "./supabase";
 
 const C = {
   navy: "#0F1F3D",
@@ -21,21 +22,6 @@ const C = {
 };
 const FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
-
-const callClaude = async (system, user) => {
-  const res = await fetch("/api/claude", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system,
-      messages: [{ role: "user", content: user }],
-    }),
-  });
-  const data = await res.json();
-  return data.content?.[0]?.text || "";
-};
 
 // ── UI helpers ───────────────────────────────────────────────────
 const Label = ({ children, required }) => (
@@ -131,12 +117,14 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
       });
 
       // Send to Claude with PDF document block
+      const authHeader = await getAuthHeader();
       const response = await fetch("/api/claude", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
+        signal: AbortSignal.timeout(45000),
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
-          max_tokens: 1000,
+          max_tokens: 2000,
           system: `You are a resume parser. Extract all information from the resume and return ONLY a valid JSON object with this exact structure, no markdown, no backticks, no explanation:
 {
   "name": "",
@@ -162,7 +150,10 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
         }),
       });
 
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data?.error?.message || data?.error || `Request failed (${response.status})`);
+      }
       const text = data.content?.[0]?.text || "";
 
       // Parse JSON response
@@ -182,7 +173,12 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
       setUploadDone(true);
     } catch (e) {
       console.error(e);
-      alert("Couldn't parse the PDF. Please fill in your details manually below.");
+      const msg = e.name === "TimeoutError"
+        ? "That took too long to process. Please try again."
+        : e instanceof SyntaxError
+          ? "Couldn't read the details from that PDF. Please fill in your details manually below."
+          : (e.message || "Something went wrong. Please try again, or fill in your details manually below.");
+      alert(msg);
     }
     setUploading(false);
   };
