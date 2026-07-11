@@ -367,7 +367,7 @@ Output only the letter's paragraph text, nothing else.`,
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
               <div style={{ fontSize: 14, fontWeight: 600, color: C.navy, display: "flex", alignItems: "center", gap: 7 }}>📄 Tailored CV</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={() => { if (onGoToResume) onGoToResume(result.tailoredCV, selectedProfile); }}
+                <button onClick={() => { if (onGoToResume) onGoToResume(result.tailoredCV, result.cvStructured); }}
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
                   ✏️ Edit in Resume editor
                 </button>
@@ -436,7 +436,7 @@ Output only the letter's paragraph text, nothing else.`,
                 </button>
               )}
               <button onClick={() => {
-                if (onGoToResume) onGoToResume(result.tailoredCV, selectedProfile);
+                if (onGoToResume) onGoToResume(result.tailoredCV, result.cvStructured);
               }}
                 style={{ padding: "10px 18px", borderRadius: 8, background: "rgba(255,255,255,0.12)", color: C.white, border: "1px solid rgba(255,255,255,0.25)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT, display: "flex", alignItems: "center", gap: 6 }}>
                 ✏️ Edit in Resume Editor

@@ -303,9 +303,15 @@ const printDoc = (elementId) => {
   win.document.write(`
     <html><head><title>JobMate Document</title>
     <style>
-      @page { margin: 0; size: A4; }
+      /* @page margin repeats on EVERY physical page — the element's own 20mm
+         screen padding is stripped below, otherwise page 2+ would have no
+         margins (padding only wraps the element once, not each page). */
+      @page { margin: 20mm 18mm; size: A4; }
       @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
-      html, body { margin: 0; padding: 0; height: auto !important; font-family: Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; overflow: hidden; }
+      /* No overflow:hidden here — it makes content jump to page 2 leaving
+         page 1 partly blank (same fix as the Resume editor's print path). */
+      html, body { margin: 0; padding: 0; height: auto !important; font-family: Georgia, serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; }
+      body > div { padding: 0 !important; }
       * { box-sizing: border-box; }
     </style></head>
     <body>${el.innerHTML}</body></html>

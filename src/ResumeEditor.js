@@ -569,10 +569,22 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
   const [data, setData] = useState(() => {
     if (initialVersion) return initialVersion.data;
     if (quickApplyCV) {
-      const lines = quickApplyCV.split("\n");
-      const nameL = lines[0]?.trim() || profile?.name || "Your Name";
-      const contactL = lines[1]?.trim() || [profile?.email, profile?.phone, profile?.location].filter(Boolean).join(" | ");
-      return { ...profileToResumeData(profile), name: nameL, contact: contactL };
+      // Preferred path: Quick Apply / CV Tailor hand over the structured CV,
+      // which matches this editor's data shape exactly — edit it directly.
+      const structured = typeof quickApplyCV === "object" ? quickApplyCV.structured : null;
+      if (structured && (structured.summary || structured.experience?.length || structured.skills)) {
+        return {
+          ...structured,
+          name: structured.name || profile?.name || "Your Name",
+          contact: structured.contact || [profile?.email, profile?.phone, profile?.location].filter(Boolean).join(" | "),
+          skills: structured.skills || "",
+          experience: (structured.experience || []).map(e => ({ ...e, bullets: e.bullets?.length ? e.bullets : [""] })),
+        };
+      }
+      // Text-only fallback: the handed-over text starts with a section heading
+      // (e.g. "SUMMARY"), never the candidate's name — so identity always comes
+      // from the profile, and the body stays profile-based.
+      return profileToResumeData(profile);
     }
     return profileToResumeData(profile);
   });

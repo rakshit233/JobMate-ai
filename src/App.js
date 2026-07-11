@@ -248,7 +248,7 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, on
                   📋 Copy text
                 </button>
                 {onGoToResume && (
-                  <button onClick={() => onGoToResume(result.text, profile)}
+                  <button onClick={() => onGoToResume(result.text, result.structured)}
                     style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
                     ✏️ Edit in Resume editor
                   </button>
@@ -718,7 +718,9 @@ export default function App() {
       .finally(() => setDataLoading(false));
   }, [user?.id]);
 
-  const goToResumeEditor = (cvText) => { setQuickApplyCV(cvText); setActive("resume"); };
+  // structured (when the AI returned parseable JSON) matches the editor's data
+  // shape exactly, so the tailored CV can be edited directly; text is the fallback.
+  const goToResumeEditor = (cvText, structured = null) => { setQuickApplyCV({ text: cvText, structured }); setActive("resume"); };
 
   // Find Jobs → Quick Apply handoff: pre-fill the job URL/description, switch tab
   const goToQuickApplyWithJob = (job) => {
