@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { callClaude, profileSummaryText, scoreJobMatch, friendlyError, safeLink } from "./matching";
+import { callClaude, profileSummaryText, scoreJobMatch, friendlyError, safeLink, blockedJobSite } from "./matching";
 import { getAuthHeader } from "./supabase";
 import { CVDocument, CoverLetterTemplate, printDoc, downloadWord, cleanCVText, stripMarkdown } from "./cvdoc";
 
@@ -63,13 +63,30 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
   const [url, setUrl] = useState(prefillJob?.url || "");
   const [jobText, setJobText] = useState(prefillJob?.description || "");
   const [inputMode, setInputMode] = useState(prefillJob?.description ? "paste" : "url");
+  const [blockedSite, setBlockedSite] = useState(null); // name of an unsupported site the user pasted, or null
+  const dismissedUrlRef = useRef("");
+
+  // Detect a LinkedIn/Glassdoor URL as it's entered and pop the helper dialog.
+  const onUrlChange = (value) => {
+    setUrl(value);
+    const site = blockedJobSite(value);
+    // Only pop if it's a blocked site AND not the exact URL the user just dismissed,
+    // so typing/editing the same link doesn't re-trigger on every keystroke.
+    if (site && value !== dismissedUrlRef.current) setBlockedSite(site);
+  };
+
+  const dismissBlocked = () => { dismissedUrlRef.current = url; setBlockedSite(null); };
 
   // Quick Apply stays mounted across tab switches, so a new job handed over
   // from Find Jobs arrives as a prop change, not a fresh mount — apply it here.
   useEffect(() => {
     if (!prefillJob) return;
     if (prefillJob.description) { setJobText(prefillJob.description); setInputMode("paste"); }
-    else if (prefillJob.url) { setUrl(prefillJob.url); setInputMode("url"); }
+    else if (prefillJob.url) {
+      setUrl(prefillJob.url); setInputMode("url");
+      const site = blockedJobSite(prefillJob.url);
+      if (site) setBlockedSite(site);
+    }
     setResult(null); setError("");
   }, [prefillJob]);
   const [loading, setLoading] = useState(false);
@@ -194,6 +211,33 @@ Output only the letter's paragraph text, nothing else.`,
     <div style={{ maxWidth: 900, margin: "0 auto" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } } @media print { .no-print { display: none !important; } }`}</style>
 
+      {/* Unsupported-source popup: fires the moment a LinkedIn/Glassdoor link is entered */}
+      {blockedSite && (
+        <div onClick={dismissBlocked}
+          style={{ position: "fixed", inset: 0, background: "rgba(15,31,61,0.5)", backdropFilter: "blur(3px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 16 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background: C.white, borderRadius: 16, maxWidth: 420, width: "100%", padding: "24px 26px", boxShadow: "0 24px 70px rgba(15,31,61,0.35)" }}>
+            <div style={{ fontSize: 30, marginBottom: 10 }}>🔗</div>
+            <div style={{ fontSize: 17, fontWeight: 700, color: C.navy, fontFamily: DISPLAY, marginBottom: 8 }}>
+              {blockedSite} links aren’t supported
+            </div>
+            <div style={{ fontSize: 13.5, color: C.gray600, lineHeight: 1.6, marginBottom: 20 }}>
+              {blockedSite} blocks automated access, so we can’t read the job posting from that link. Please open the posting, copy the job description text, and paste it here instead.
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={dismissBlocked}
+                style={{ padding: "9px 16px", borderRadius: 9, border: `1px solid ${C.gray200}`, background: C.white, fontSize: 13, fontWeight: 600, color: C.gray600, cursor: "pointer", fontFamily: FONT }}>
+                Cancel
+              </button>
+              <button onClick={() => { setUrl(""); setInputMode("paste"); setBlockedSite(null); }}
+                style={{ padding: "9px 16px", borderRadius: 9, border: "none", background: C.accent, fontSize: 13, fontWeight: 700, color: C.white, cursor: "pointer", fontFamily: FONT }}>
+                Paste job description
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Input card */}
       {!result && (
         <div style={{ background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}`, padding: "20px 24px", marginBottom: 20 }}>
@@ -236,7 +280,7 @@ Output only the letter's paragraph text, nothing else.`,
 
           {inputMode === "url" ? (
             <>
-              <input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://boards.greenhouse.io/... or a company careers page"
+              <input value={url} onChange={e => onUrlChange(e.target.value)} placeholder="https://boards.greenhouse.io/... or a company careers page"
                 style={{ width: "100%", padding: "11px 14px", borderRadius: 8, border: `0.5px solid ${C.gray200}`, fontSize: 14, color: C.gray800, fontFamily: FONT, outline: "none" }}
                 onFocus={e => e.target.style.borderColor = C.accent} onBlur={e => e.target.style.borderColor = C.gray200}
                 onKeyDown={e => e.key === "Enter" && run()} />

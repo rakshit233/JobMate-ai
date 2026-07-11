@@ -144,6 +144,16 @@ export const isLikelyUrl = (v) => {
 
 export const isLinkedInUrl = (v) => isLikelyUrl(v) && /linkedin\.com\//i.test(v);
 
+// Detect job sites we can't fetch server-side (they block automated access).
+// Returns the site name for a friendly message, or null. Kept in sync with
+// the BLOCKED_HOSTS list in api/fetch-job.js.
+export const blockedJobSite = (v) => {
+  if (!isLikelyUrl(v)) return null;
+  if (/(^|\.|\/)linkedin\.com\b/i.test(v)) return "LinkedIn";
+  if (/(^|\.|\/)glassdoor\.[a-z.]+/i.test(v)) return "Glassdoor";
+  return null;
+};
+
 // Returns the link if it's plausibly a URL, otherwise "" — used when building
 // CV/letter text so junk typed into link fields never reaches a document.
 export const safeLink = (v) => (isLikelyUrl(v) ? v.trim() : "");
