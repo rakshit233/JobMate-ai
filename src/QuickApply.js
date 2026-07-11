@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { callClaude, profileSummaryText, scoreJobMatch, friendlyError, safeLink } from "./matching";
 import { getAuthHeader } from "./supabase";
-import { CVDocument, CoverLetterDocument, printDoc, downloadWord, cleanCVText, stripMarkdown } from "./cvdoc";
+import { CVDocument, CoverLetterTemplate, printDoc, downloadWord, cleanCVText, stripMarkdown } from "./cvdoc";
 
 const C = {
   navy: "#0F1F3D",
@@ -155,25 +155,31 @@ Output only the CV text, no commentary.`,
       );
 
       setCurrentStep("cover");
-      const today = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
-      const contactDetails = [
-        selectedProfile?.name,
-        selectedProfile?.email,
-        selectedProfile?.phone,
-        selectedProfile?.location,
-        safeLink(selectedProfile?.linkedin),
-      ].filter(Boolean).join(" | ") || "Not provided";
       const coverLetter = await callClaude(
-        `Write a compelling, Germany-ready cover letter.
+        `Expert cover letter writer for English speakers applying to German companies.
 CRITICAL RULES:
-- Use ONLY the contact details explicitly provided below. NEVER use placeholders like [Phone], [Email], [Address], [Company Address]. If a detail is not provided, leave it out completely.
-- Structure: candidate's name and provided contact details at top, then the date, then salutation ("Dear Hiring Team," if no name is known), then 3-4 strong paragraphs, then "Yours sincerely," and the candidate's name.
-- Do not include the employer's postal address block.
-Output only the letter text, no commentary.`,
-        `CANDIDATE CONTACT (use exactly these, nothing more): ${contactDetails}\nTODAY'S DATE: ${today}\n\nCANDIDATE BACKGROUND:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite the tailored cover letter.`
+- Output ONLY the body paragraphs — no name, no date, no "Dear ...", no contact details, no company address, no sign-off. The document template supplies all of that separately.
+- 3-4 strong paragraphs: a hook connecting the candidate to the role, evidence from their background, why this company, and a confident close.
+- Use ONLY facts from the candidate background provided. Never invent employers, numbers, or achievements not given.
+- Plain text, no markdown, no bullet points.
+Output only the letter's paragraph text, nothing else.`,
+        `CANDIDATE BACKGROUND:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite the letter body only.`
       );
 
-      setResult({ jd, score: scoreData, tailoredCV: cleanCVText(stripMarkdown(tailoredCV), selectedProfile?.name), coverLetter: cleanCVText(stripMarkdown(coverLetter), null) });
+      // Separately pull the role + company from the JD so the template header
+      // is built from extracted facts, not left to the body text.
+      let clRole = "", clCompany = "";
+      try {
+        const meta = await callClaude(
+          `Extract the job title and hiring company from this job description. Return ONLY valid JSON: {"role":"","company":""}. If either is unknown, use an empty string. No markdown.`,
+          jd.slice(0, 3000)
+        );
+        const parsed = JSON.parse(meta.replace(/```json|```/g, "").trim());
+        clRole = parsed.role || "";
+        clCompany = parsed.company || "";
+      } catch { /* header just omits role/company if extraction fails */ }
+
+      setResult({ jd, score: scoreData, tailoredCV: cleanCVText(stripMarkdown(tailoredCV), selectedProfile?.name), coverLetter: cleanCVText(stripMarkdown(coverLetter), null), clRole, clCompany });
     } catch (e) {
       setError(friendlyError(e));
     }
@@ -361,7 +367,13 @@ Output only the letter text, no commentary.`,
               </div>
             </div>
             <div id="cl-doc" style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", maxHeight: 420, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <CoverLetterDocument text={result.coverLetter} />
+              <CoverLetterTemplate
+                name={selectedProfile?.name}
+                role={result.clRole}
+                company={result.clCompany}
+                contact={contactLine}
+                body={result.coverLetter}
+              />
             </div>
           </div>
 
