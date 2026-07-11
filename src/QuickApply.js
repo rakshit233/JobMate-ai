@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { callClaude, profileSummaryText, scoreJobMatch, friendlyError, safeLink, blockedJobSite } from "./matching";
 import { getAuthHeader } from "./supabase";
-import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText } from "./cvdoc";
+import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText, salvageJsonText } from "./cvdoc";
 
 const C = {
   navy: "#0F1F3D",
@@ -195,7 +195,7 @@ Output only the letter's paragraph text, nothing else.`,
         clCompany = parsed.company || "";
       } catch { /* header just omits role/company if extraction fails */ }
 
-      setResult({ jd, score: scoreData, cvStructured, tailoredCV: cvStructured ? structuredCVToText(cvStructured) : cleanCVText(stripMarkdown(tailoredCVRaw), selectedProfile?.name), coverLetter: cleanCVText(stripMarkdown(coverLetter), null), clRole, clCompany });
+      setResult({ jd, score: scoreData, cvStructured, tailoredCV: cvStructured ? structuredCVToText(cvStructured) : salvageJsonText(cleanCVText(stripMarkdown(tailoredCVRaw), selectedProfile?.name)), coverLetter: cleanCVText(stripMarkdown(coverLetter), null), clRole, clCompany });
     } catch (e) {
       setError(friendlyError(e));
     }

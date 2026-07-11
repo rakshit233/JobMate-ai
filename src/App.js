@@ -8,7 +8,7 @@ import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
 import { profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
-import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText } from "./cvdoc";
+import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText, salvageJsonText } from "./cvdoc";
 import {
   supabase, signOut, getAuthHeader,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
@@ -220,7 +220,7 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, on
             setResult({ structured, text: structuredCVToText(structured) });
           } else {
             // Fallback: model didn't return usable JSON — keep the old text render.
-            setResult({ structured: null, text: cleanCVText(stripMarkdown(r), splitCVHeader(cv).name || profile?.name) });
+            setResult({ structured: null, text: salvageJsonText(cleanCVText(stripMarkdown(r), splitCVHeader(cv).name || profile?.name)) });
           }
         } catch(e){ setError(friendlyError(e)); }
         setLoading(false);

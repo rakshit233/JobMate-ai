@@ -367,12 +367,21 @@ export const parseStructuredCV = (text) => {
   // If the model wrapped JSON in prose, grab the outermost {...}.
   const first = raw.indexOf("{");
   const last = raw.lastIndexOf("}");
-  if (first > 0 || last < raw.length - 1) {
-    if (first !== -1 && last !== -1 && last > first) raw = raw.slice(first, last + 1);
+  if (first !== -1 && last !== -1 && last > first) raw = raw.slice(first, last + 1);
+
+  const tryParse = (s) => { try { return JSON.parse(s); } catch { return undefined; } };
+
+  let obj = tryParse(raw);
+  if (obj === undefined) {
+    // Repair the single most common LLM mistake: trailing commas before } or ].
+    // e.g. {"a":1,} or ["x","y",]  →  {"a":1} / ["x","y"]
+    const repaired = raw.replace(/,(\s*[}\]])/g, "$1");
+    obj = tryParse(repaired);
   }
-  let obj;
-  try { obj = JSON.parse(raw); } catch { return null; }
-  if (!obj || typeof obj !== "object") return null;
+  if (obj === undefined || !obj || typeof obj !== "object") return null;
+  // Must look like a CV, not some other JSON — require at least one known field.
+  if (!("name" in obj) && !("experience" in obj) && !("summary" in obj) && !("skills" in obj)) return null;
+
   return {
     name: obj.name || "",
     contact: obj.contact || "",
@@ -388,10 +397,33 @@ export const parseStructuredCV = (text) => {
   };
 };
 
+// Last-resort safety net: if a "text" CV still looks like raw JSON (parsing
+// failed AND it wasn't caught), pull human-readable strings out of it so the
+// user never sees literal braces and quotes. Best-effort only.
+export const salvageJsonText = (text) => {
+  if (!text) return text;
+  const t = text.trim();
+  const looksLikeJson = t.startsWith("{") && t.includes('"');
+  if (!looksLikeJson) return text;
+  // Try a tolerant parse first (reusing the same trailing-comma repair).
+  const parsed = parseStructuredCV(t);
+  if (parsed) return structuredCVToText(parsed);
+  // If even that fails, strip JSON syntax to leave the readable values.
+  return t
+    .replace(/^[\s{[]+|[\s}\]]+$/g, "")
+    .split("\n")
+    .map(line => {
+      const m = line.match(/^\s*"[^"]+"\s*:\s*"?(.*?)"?,?\s*$/);
+      return m ? m[1] : "";
+    })
+    .filter(Boolean)
+    .join("\n")
+    .trim() || "Your tailored CV was generated but couldn't be formatted. Please try again.";
+};
+
 // Flatten a structured CV back to plain text — for Copy-to-clipboard and as the
 // source for Word/PDF when needed.
-export const structuredCVToText = (data) => {
-  if (!data) return "";
+export const structuredCVToText = (data) => {  if (!data) return "";
   const lines = [];
   if (data.summary) { lines.push("SUMMARY", data.summary, ""); }
   if (data.experience?.length) {
