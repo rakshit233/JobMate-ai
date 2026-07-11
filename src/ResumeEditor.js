@@ -587,7 +587,7 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
     setLastSavedData(null);
   };
   const [template, setTemplate] = useState("classic");
-  const [font, setFont] = useState("georgia");
+  const [font, setFont] = useState("helvetica");
   const [sectionOrder, setSectionOrder] = useState(DEFAULT_SECTION_ORDER);
   const [panelTab, setPanelTab] = useState("design"); // "design" or "ai"
 
