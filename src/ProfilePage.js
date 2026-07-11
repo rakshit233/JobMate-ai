@@ -23,6 +23,35 @@ const C = {
 const FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
+// Curated skill suggestions for the autocomplete. Covers common tech, data,
+// business, design, and soft skills plus tools relevant to the German job
+// market. Not exhaustive — users can still type any custom skill and press Enter.
+const SKILL_SUGGESTIONS = [
+  // Programming & tech
+  "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", "Go", "Rust", "Ruby", "PHP", "Swift", "Kotlin", "SQL", "R", "MATLAB", "Scala",
+  "React", "Vue.js", "Angular", "Node.js", "Next.js", "Express", "Django", "Flask", "Spring Boot", ".NET", "Ruby on Rails",
+  "HTML", "CSS", "Tailwind CSS", "SASS", "GraphQL", "REST APIs",
+  "AWS", "Azure", "Google Cloud", "Docker", "Kubernetes", "Terraform", "CI/CD", "Git", "Linux", "Jenkins",
+  "PostgreSQL", "MySQL", "MongoDB", "Redis", "Elasticsearch", "Firebase", "Supabase",
+  // Data & AI
+  "Data Analysis", "Data Visualization", "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Pandas", "NumPy",
+  "Power BI", "Tableau", "Looker", "Excel", "Google Sheets", "A/B Testing", "Statistics", "ETL", "Big Data", "Apache Spark",
+  // Business & PM
+  "Project Management", "Product Management", "Agile", "Scrum", "Kanban", "Jira", "Confluence", "Asana", "Trello", "Notion",
+  "Stakeholder Management", "Business Analysis", "Strategy", "Operations Management", "Risk Management", "Budgeting",
+  "Salesforce", "SAP", "HubSpot", "CRM", "Six Sigma", "Lean", "PRINCE2",
+  // Marketing & sales
+  "Digital Marketing", "SEO", "SEM", "Content Marketing", "Social Media Marketing", "Email Marketing", "Google Analytics",
+  "Google Ads", "Copywriting", "Brand Management", "Market Research", "Lead Generation", "Account Management",
+  // Design
+  "UX Design", "UI Design", "Figma", "Adobe Photoshop", "Adobe Illustrator", "Adobe XD", "Sketch", "InDesign",
+  "Prototyping", "Wireframing", "Design Systems", "Graphic Design", "Video Editing", "Motion Graphics",
+  // Soft skills & languages
+  "Communication", "Leadership", "Teamwork", "Problem Solving", "Time Management", "Adaptability", "Critical Thinking",
+  "Presentation Skills", "Negotiation", "Mentoring", "Cross-functional Collaboration", "Public Speaking",
+  "German (A1)", "German (A2)", "German (B1)", "German (B2)", "German (C1)", "German (C2)", "English (Fluent)", "English (Native)",
+];
+
 // ── UI helpers ───────────────────────────────────────────────────
 const Label = ({ children, required }) => (
   <label style={{ fontSize: 12, fontWeight: 600, color: C.gray600, display: "block", marginBottom: 5 }}>
@@ -220,11 +249,45 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
   const removeEdu = (i) => setProfile({ ...profile, education: profile.education.filter((_, idx) => idx !== i) });
 
   // ── Skills ───────────────────────────────────────────────────
+  const [skillHighlight, setSkillHighlight] = useState(-1); // keyboard-highlighted suggestion
+  const [skillFocused, setSkillFocused] = useState(false);
+
+  // Suggestions: match the typed text, exclude already-added skills, cap the list.
+  const skillSuggestions = (() => {
+    const q = skillInput.trim().toLowerCase();
+    if (!q) return [];
+    const already = new Set(profile.skills.map(s => s.toLowerCase()));
+    return SKILL_SUGGESTIONS
+      .filter(s => s.toLowerCase().includes(q) && !already.has(s.toLowerCase()))
+      .slice(0, 8);
+  })();
+
+  const commitSkill = (value) => {
+    const v = value.trim();
+    if (v && !profile.skills.some(s => s.toLowerCase() === v.toLowerCase())) {
+      setProfile({ ...profile, skills: [...profile.skills, v] });
+    }
+    setSkillInput("");
+    setSkillHighlight(-1);
+  };
+
   const addSkill = (e) => {
-    if ((e.key === "Enter" || e.key === ",") && skillInput.trim()) {
+    // Arrow navigation through the suggestion dropdown
+    if (e.key === "ArrowDown" && skillSuggestions.length) {
       e.preventDefault();
-      if (!profile.skills.includes(skillInput.trim())) setProfile({ ...profile, skills: [...profile.skills, skillInput.trim()] });
-      setSkillInput("");
+      setSkillHighlight(h => (h + 1) % skillSuggestions.length);
+      return;
+    }
+    if (e.key === "ArrowUp" && skillSuggestions.length) {
+      e.preventDefault();
+      setSkillHighlight(h => (h <= 0 ? skillSuggestions.length - 1 : h - 1));
+      return;
+    }
+    if (e.key === "Escape") { setSkillHighlight(-1); setSkillFocused(false); return; }
+    if ((e.key === "Enter" || e.key === ",") && (skillInput.trim() || skillHighlight >= 0)) {
+      e.preventDefault();
+      // If a suggestion is highlighted, add that; otherwise add the typed text.
+      commitSkill(skillHighlight >= 0 && skillSuggestions[skillHighlight] ? skillSuggestions[skillHighlight] : skillInput);
     }
   };
   const removeSkill = (s) => setProfile({ ...profile, skills: profile.skills.filter(x => x !== s) });
@@ -389,12 +452,29 @@ export default function ProfilePage({ profiles = [], activeProfileId, profile, s
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
           {profile.skills.map(s => <Pill key={s} onRemove={() => removeSkill(s)}>{s}</Pill>)}
         </div>
-        <input value={skillInput} onChange={e => setSkillInput(e.target.value)} onKeyDown={addSkill}
-          placeholder="Type a skill and press Enter (e.g. Project Management)"
-          style={{ ...inputStyle, marginTop: 4 }}
-          onFocus={e => e.target.style.borderColor = C.accent}
-          onBlur={e => e.target.style.borderColor = C.gray200}
-        />
+        <div style={{ position: "relative" }}>
+          <input value={skillInput}
+            onChange={e => { setSkillInput(e.target.value); setSkillHighlight(-1); }}
+            onKeyDown={addSkill}
+            placeholder="Type a skill (e.g. Project Management)"
+            style={{ ...inputStyle, marginTop: 4 }}
+            onFocus={e => { e.target.style.borderColor = C.accent; setSkillFocused(true); }}
+            onBlur={e => { e.target.style.borderColor = C.gray200; setTimeout(() => setSkillFocused(false), 150); }}
+          />
+          {skillFocused && skillSuggestions.length > 0 && (
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: C.white, border: `1px solid ${C.gray200}`, borderRadius: 10, boxShadow: "0 8px 24px rgba(15,31,61,0.12)", zIndex: 20, overflow: "hidden", maxHeight: 280, overflowY: "auto" }}>
+              {skillSuggestions.map((s, i) => (
+                <div key={s}
+                  // onMouseDown (not onClick) so it fires before the input's onBlur closes the list
+                  onMouseDown={e => { e.preventDefault(); commitSkill(s); }}
+                  onMouseEnter={() => setSkillHighlight(i)}
+                  style={{ padding: "9px 14px", fontSize: 13, cursor: "pointer", color: C.gray800, background: i === skillHighlight ? C.accentLight : C.white, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ color: C.accent, fontSize: 12 }}>+</span>{s}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <p style={{ fontSize: 11, color: C.gray400, marginTop: 6 }}>Press Enter or comma to add each skill</p>
       </Card>
 
