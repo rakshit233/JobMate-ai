@@ -8,7 +8,7 @@ import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
 import { profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
-import { CVDocument, CoverLetterTemplate, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader } from "./cvdoc";
+import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText } from "./cvdoc";
 import {
   supabase, signOut, getAuthHeader,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
@@ -209,16 +209,19 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, on
         setLoading(true); setResult(""); setError("");
         try {
           const r = await callClaude(
-            `You are an expert CV writer for the German job market. Rewrite and tailor the CV to match the job description. ATS-optimised, strong action verbs, concise.
-CRITICAL RULES:
-- Output PLAIN TEXT only. No markdown: no #, ##, **, or --- lines.
-- Do NOT include the candidate's name or contact details — the document template displays them. Start directly with the SUMMARY section.
-- Sections in order: SUMMARY, WORK EXPERIENCE, EDUCATION, SKILLS. ALL CAPS section headings.
-- Use bullet points (•) for experience items. Use ONLY facts present in the provided CV — never invent employers, dates, or numbers, and never use placeholders like [Phone] or [Email].
-Output only the CV text, no commentary.`,
-            `CV:\n${cv}\n\nJD:\n${jd}\n\nWrite the tailored CV body (no name/contact header).`
+            `You are an expert CV writer for the German job market. Rewrite and tailor the candidate's CV to match the target job. ATS-optimised, strong action verbs, concise.\n${STRUCTURED_CV_INSTRUCTION}`,
+            `CANDIDATE CV:\n${cv}\n\nTARGET JOB:\n${jd}\n\nProduce the tailored CV as JSON.`
           );
-          setResult(cleanCVText(stripMarkdown(r), splitCVHeader(cv).name || profile?.name));
+          const structured = parseStructuredCV(r);
+          if (structured) {
+            // Fill header identity from the profile/pasted CV, not the model.
+            structured.name = splitCVHeader(cv).name || profile?.name || structured.name || "";
+            structured.contact = splitCVHeader(cv).contact || [profile?.email, profile?.phone, profile?.location, safeLink(profile?.linkedin)].filter(Boolean).join(" | ") || structured.contact || "";
+            setResult({ structured, text: structuredCVToText(structured) });
+          } else {
+            // Fallback: model didn't return usable JSON — keep the old text render.
+            setResult({ structured: null, text: cleanCVText(stripMarkdown(r), splitCVHeader(cv).name || profile?.name) });
+          }
         } catch(e){ setError(friendlyError(e)); }
         setLoading(false);
       }} disabled={loading || !cv.trim() || !jd.trim()}
@@ -233,19 +236,19 @@ Output only the CV text, no commentary.`,
       {error && <div style={{ marginTop: 12, fontSize: 13, color: "#DC2626", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8, padding: "8px 12px" }}>{error}</div>}
       {result && (() => {
         const inHeader = splitCVHeader(cv);
-        const docName = inHeader.name || profile?.name || "";
-        const docContact = inHeader.contact || [profile?.email, profile?.phone, profile?.location, safeLink(profile?.linkedin)].filter(Boolean).join(" | ");
+        const docName = (result.structured && result.structured.name) || inHeader.name || profile?.name || "";
+        const docContact = (result.structured && result.structured.contact) || inHeader.contact || [profile?.email, profile?.phone, profile?.location, safeLink(profile?.linkedin)].filter(Boolean).join(" | ");
         return (
           <Card style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>✨ Tailored CV — ready to use</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button onClick={() => navigator.clipboard.writeText(result)}
+                <button onClick={() => navigator.clipboard.writeText(result.text)}
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
                   📋 Copy text
                 </button>
                 {onGoToResume && (
-                  <button onClick={() => onGoToResume(result, profile)}
+                  <button onClick={() => onGoToResume(result.text, profile)}
                     style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
                     ✏️ Edit in Resume editor
                   </button>
@@ -261,7 +264,9 @@ Output only the CV text, no commentary.`,
               </div>
             </div>
             <div id="cvtailor-doc" style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", maxHeight: 480, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <CVDocument cvText={result} name={docName} contact={docContact} />
+              {result.structured
+                ? <StaticResume data={result.structured} />
+                : <CVDocument cvText={result.text} name={docName} contact={docContact} />}
             </div>
           </Card>
         );

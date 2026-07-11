@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { callClaude, profileSummaryText, scoreJobMatch, friendlyError, safeLink, blockedJobSite } from "./matching";
 import { getAuthHeader } from "./supabase";
-import { CVDocument, CoverLetterTemplate, printDoc, downloadWord, cleanCVText, stripMarkdown } from "./cvdoc";
+import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText } from "./cvdoc";
 
 const C = {
   navy: "#0F1F3D",
@@ -160,16 +160,15 @@ export default function QuickApply({ profile, profiles = [], activeProfileId, on
       const scoreData = await scoreJobMatch(selectedProfile, jd);
 
       setCurrentStep("cv");
-      const tailoredCV = await callClaude(
-        `You are an expert CV writer for the German job market. Create a clean, ATS-optimised CV body.
-CRITICAL RULES:
-- Do NOT include the candidate's name or any contact details — the document template already displays them. Start directly with the SUMMARY section.
-- Use ONLY information provided in the CANDIDATE section. NEVER invent details and NEVER use placeholders like [Phone], [Email], [Address], or "TBD". If a piece of information is not provided, omit it entirely.
-- Sections in order: SUMMARY, WORK EXPERIENCE, EDUCATION, SKILLS. ALL CAPS section headings.
-- Use bullet points (•) for experience items. No empty bullets, no filler like "--".
-Output only the CV text, no commentary.`,
-        `CANDIDATE:\n${profileSummary}\n\nJOB:\n${jd}\n\nWrite the tailored CV body (no name/contact header).`
+      const tailoredCVRaw = await callClaude(
+        `You are an expert CV writer for the German job market. Create a clean, ATS-optimised CV tailored to the target job.\n${STRUCTURED_CV_INSTRUCTION}`,
+        `CANDIDATE:\n${profileSummary}\n\nTARGET JOB:\n${jd}\n\nProduce the tailored CV as JSON.`
       );
+      const cvStructured = parseStructuredCV(tailoredCVRaw);
+      if (cvStructured) {
+        cvStructured.name = selectedProfile?.name || cvStructured.name || "";
+        cvStructured.contact = contactLine || cvStructured.contact || "";
+      }
 
       setCurrentStep("cover");
       const coverLetter = await callClaude(
@@ -196,7 +195,7 @@ Output only the letter's paragraph text, nothing else.`,
         clCompany = parsed.company || "";
       } catch { /* header just omits role/company if extraction fails */ }
 
-      setResult({ jd, score: scoreData, tailoredCV: cleanCVText(stripMarkdown(tailoredCV), selectedProfile?.name), coverLetter: cleanCVText(stripMarkdown(coverLetter), null), clRole, clCompany });
+      setResult({ jd, score: scoreData, cvStructured, tailoredCV: cvStructured ? structuredCVToText(cvStructured) : cleanCVText(stripMarkdown(tailoredCVRaw), selectedProfile?.name), coverLetter: cleanCVText(stripMarkdown(coverLetter), null), clRole, clCompany });
     } catch (e) {
       setError(friendlyError(e));
     }
@@ -387,7 +386,9 @@ Output only the letter's paragraph text, nothing else.`,
               </div>
             </div>
             <div id="cv-doc" style={{ border: `0.5px solid ${C.gray200}`, borderRadius: 8, overflow: "hidden", maxHeight: 420, overflowY: "auto", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-              <CVDocument cvText={result.tailoredCV} name={selectedProfile?.name} contact={contactLine} />
+              {result.cvStructured
+                ? <StaticResume data={result.cvStructured} />
+                : <CVDocument cvText={result.tailoredCV} name={selectedProfile?.name} contact={contactLine} />}
             </div>
           </div>
 

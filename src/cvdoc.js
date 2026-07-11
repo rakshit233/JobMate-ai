@@ -196,9 +196,97 @@ const CoverLetterTemplate = ({ name, role, contact, hiringManager = "Hiring Mana
 };
 
 
+// ── Static (read-only) Resume — Classic template ────────────────────
+// Renders the SAME polished layout as the Resume editor's "Classic" template,
+// but read-only from a plain data object. Used by Quick Apply and CV Tailor so
+// their generated CVs look identical to the editor. Expected shape:
+//   { name, contact, summary, skills,
+//     experience: [{ company, title, location, dates, bullets: [] }],
+//     education:  [{ school, degree, location, dates }] }
+const CLASSIC_ACCENT = "#1E293B";
+const RESUME_FONT = "'Helvetica Neue', Arial, sans-serif";
+
+const StaticHeading = ({ title }) => (
+  <div style={{ borderBottom: `2px solid ${CLASSIC_ACCENT}`, marginBottom: 6, marginTop: 14, paddingBottom: 2 }}>
+    <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: CLASSIC_ACCENT, textTransform: "uppercase" }}>{title}</span>
+  </div>
+);
+
+export const StaticResume = ({ data }) => {
+  if (!data) return null;
+  const exp = Array.isArray(data.experience) ? data.experience : [];
+  const edu = Array.isArray(data.education) ? data.education : [];
+  const skills = Array.isArray(data.skills) ? data.skills.join(" \u00b7 ") : (data.skills || "");
+
+  return (
+    <div style={{ background: "#FFFFFF", padding: "20mm 18mm", fontFamily: RESUME_FONT, fontSize: 11.5, lineHeight: 1.55, color: "#1a1a1a" }}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.01em", color: "#0F1F3D" }}>{data.name || ""}</div>
+        {data.contact && <div style={{ fontSize: 12, color: "#475569", marginTop: 3 }}>{data.contact}</div>}
+      </div>
+
+      {data.summary && (
+        <div>
+          <StaticHeading title="Summary" />
+          <div style={{ fontSize: 12.5, lineHeight: 1.65, color: "#334155", whiteSpace: "pre-wrap" }}>{data.summary}</div>
+        </div>
+      )}
+
+      {exp.length > 0 && (
+        <div>
+          <StaticHeading title="Work Experience" />
+          {exp.map((e, i) => (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 13, flex: 1, minWidth: 0 }}>{e.company}</span>
+                <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}>{e.location}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontStyle: "italic", fontSize: 12, color: "#334155", flex: 1, minWidth: 0 }}>{e.title}</span>
+                <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}>{e.dates}</span>
+              </div>
+              {Array.isArray(e.bullets) && e.bullets.length > 0 && (
+                <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                  {e.bullets.filter(Boolean).map((b, bi) => (
+                    <li key={bi} style={{ fontSize: 12, lineHeight: 1.6, color: "#334155", marginBottom: 2 }}>{b}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {edu.length > 0 && (
+        <div>
+          <StaticHeading title="Education" />
+          {edu.map((ed, i) => (
+            <div key={i} style={{ marginBottom: 6 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: 12.5, flex: 1, minWidth: 0 }}>{ed.school}</span>
+                <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}>{ed.location}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                <span style={{ fontStyle: "italic", fontSize: 12, color: "#334155", flex: 1, minWidth: 0 }}>{ed.degree}</span>
+                <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}>{ed.dates}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {skills && (
+        <div>
+          <StaticHeading title="Skills" />
+          <div style={{ fontSize: 12.5, color: "#334155" }}>{skills}</div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const downloadPDF = (elementId, filename) => {
-  const el = document.getElementById(elementId);
-  if (!el) return;
+  const el = document.getElementById(elementId);  if (!el) return;
   const content = el.innerText;
   const blob = new Blob([content], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
@@ -251,3 +339,78 @@ export const downloadWord = (elementId, filename = "document") => {
 };
 
 export { cleanCVText, CVDocument, CoverLetterDocument, CoverLetterTemplate, downloadPDF, printDoc };
+
+// ── Structured CV generation helpers ─────────────────────────────
+// The JSON shape StaticResume consumes. Shared so Quick Apply and CV Tailor
+// produce identical structure.
+export const STRUCTURED_CV_INSTRUCTION = `Return ONLY valid JSON (no markdown, no backticks, no commentary) with EXACTLY this shape:
+{
+  "name": "",
+  "contact": "",
+  "summary": "",
+  "experience": [{"company":"","title":"","location":"","dates":"","bullets":["",""]}],
+  "education": [{"school":"","degree":"","location":"","dates":""}],
+  "skills": ""
+}
+Rules:
+- Use ONLY facts from the candidate information provided. NEVER invent employers, dates, numbers, or achievements.
+- "dates" is a single string like "01/2022 – Present". "degree" combines degree and field, e.g. "B.Sc. · Computer Science".
+- "skills" is a single string of skills separated by " · ".
+- Tailor the summary and bullet points to the target job, emphasising relevant experience, but never fabricate.
+- Do not use placeholders like [Phone] or [Email]. Omit anything not provided.`;
+
+// Parse the AI's JSON CV, tolerating markdown fences or stray prose around it.
+// Returns a normalized object, or null if nothing usable was found.
+export const parseStructuredCV = (text) => {
+  if (!text) return null;
+  let raw = text.replace(/```json|```/g, "").trim();
+  // If the model wrapped JSON in prose, grab the outermost {...}.
+  const first = raw.indexOf("{");
+  const last = raw.lastIndexOf("}");
+  if (first > 0 || last < raw.length - 1) {
+    if (first !== -1 && last !== -1 && last > first) raw = raw.slice(first, last + 1);
+  }
+  let obj;
+  try { obj = JSON.parse(raw); } catch { return null; }
+  if (!obj || typeof obj !== "object") return null;
+  return {
+    name: obj.name || "",
+    contact: obj.contact || "",
+    summary: obj.summary || "",
+    experience: Array.isArray(obj.experience) ? obj.experience.map(e => ({
+      company: e.company || "", title: e.title || "", location: e.location || "", dates: e.dates || "",
+      bullets: Array.isArray(e.bullets) ? e.bullets.filter(Boolean) : [],
+    })) : [],
+    education: Array.isArray(obj.education) ? obj.education.map(ed => ({
+      school: ed.school || "", degree: ed.degree || "", location: ed.location || "", dates: ed.dates || "",
+    })) : [],
+    skills: Array.isArray(obj.skills) ? obj.skills.join(" \u00b7 ") : (obj.skills || ""),
+  };
+};
+
+// Flatten a structured CV back to plain text — for Copy-to-clipboard and as the
+// source for Word/PDF when needed.
+export const structuredCVToText = (data) => {
+  if (!data) return "";
+  const lines = [];
+  if (data.summary) { lines.push("SUMMARY", data.summary, ""); }
+  if (data.experience?.length) {
+    lines.push("WORK EXPERIENCE");
+    data.experience.forEach(e => {
+      lines.push(`${e.company}${e.location ? " — " + e.location : ""}`);
+      lines.push(`${e.title}${e.dates ? " (" + e.dates + ")" : ""}`);
+      (e.bullets || []).forEach(b => lines.push("• " + b));
+      lines.push("");
+    });
+  }
+  if (data.education?.length) {
+    lines.push("EDUCATION");
+    data.education.forEach(ed => {
+      lines.push(`${ed.school}${ed.location ? " — " + ed.location : ""}`);
+      lines.push(`${ed.degree}${ed.dates ? " (" + ed.dates + ")" : ""}`);
+      lines.push("");
+    });
+  }
+  if (data.skills) { lines.push("SKILLS", data.skills); }
+  return lines.join("\n").trim();
+};
