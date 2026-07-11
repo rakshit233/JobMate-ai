@@ -28,9 +28,11 @@ export const profileSummaryText = (profile) => {
 Summary: ${profile.summary || ""}
 Skills: ${(profile.skills || []).join(", ")}
 Experience: ${(profile.experience || []).filter(e => e.company).map(e =>
-  `${e.title} at ${e.company} (${e.startDate}–${e.current ? "Present" : e.endDate}): ${(e.bullets || []).join("; ")}`
+  `${e.title} at ${e.company}${e.location ? ", " + e.location : ""} (${e.startDate}–${e.current ? "Present" : e.endDate}): ${(e.bullets || []).join("; ")}`
 ).join("\n")}
-Education: ${(profile.education || []).filter(e => e.school).map(e => `${e.degree} at ${e.school}`).join(", ")}`;
+Education: ${(profile.education || []).filter(e => e.school).map(e =>
+  `${[e.degree, e.field].filter(Boolean).join(" · ")} at ${e.school}${e.location ? ", " + e.location : ""} (${e.startDate || ""}–${e.endDate || ""})`
+).join("\n")}`;
 };
 
 // Single job scoring — used by Quick Apply (one job, full detail)
