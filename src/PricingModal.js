@@ -54,7 +54,7 @@ export default function PricingModal({ open, onClose, reason = "manual", remaini
             : "Unlock unlimited AI generations across Quick Apply, CV tailor, Cover letter, and Resume editor."}
         </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, padding: "20px 28px 28px" }}>
+        <div className="ja-grid2" style={{ gap: 12, padding: "20px 24px 24px" }}>
           <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 14, padding: "18px 18px 20px" }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.gray600 }}>Free</div>
             <div style={{ fontSize: 26, fontWeight: 800, color: C.navy, fontFamily: DISPLAY, margin: "4px 0 14px" }}>€0</div>

@@ -885,7 +885,7 @@ export default function App() {
       <div className="ja-main" style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden", position:"relative", zIndex:1, minWidth:0 }}>
         {/* Page header — hidden for Resume Editor since it needs full height */}
         {active !== "resume" && (
-          <div style={{ background:"rgba(255,255,255,0.7)", backdropFilter:"blur(10px)", borderBottom:`1px solid ${C.gray200}`, padding:"16px 28px" }}>
+          <div className="ja-pagehead" style={{ background:"rgba(255,255,255,0.7)", backdropFilter:"blur(10px)", borderBottom:`1px solid ${C.gray200}`, padding:"16px 28px" }}>
             <h1 style={{ fontFamily:DISPLAY, fontSize:20, fontWeight:700, margin:"0 0 3px", background:`linear-gradient(100deg, ${C.navy} 60%, ${C.accent})`, WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>{page.title}</h1>
             <p style={{ fontSize:13, color:C.gray400, margin:0 }}>{page.sub}</p>
           </div>

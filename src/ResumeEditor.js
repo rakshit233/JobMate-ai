@@ -464,7 +464,7 @@ const VersionBar = ({ profiles = [], activeProfileId, onSelectProfile, onFillFro
   const current = versions.find(v => v.id === currentVersionId);
 
   return (
-    <div style={{ background: C.gray50, borderBottom: `1px solid ${C.gray200}`, padding: "8px 24px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+    <div className="ja-versionbar" style={{ background: C.gray50, borderBottom: `1px solid ${C.gray200}`, padding: "8px 24px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
       {profiles.length > 0 && (
         <>
           <span style={{ fontSize: 11, fontWeight: 700, color: C.gray500, textTransform: "uppercase", letterSpacing: "0.05em" }}>Profile:</span>
@@ -631,10 +631,10 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: UI_FONT, background: C.gray100 }}>
       {/* Slim toolbar — consistent with app header style, no duplicate JobMate logo */}
-      <div style={{ background: C.white, borderBottom: `0.5px solid ${C.gray200}`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+      <div className="ja-editor-toolbar" style={{ background: C.white, borderBottom: `0.5px solid ${C.gray200}`, padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, flexWrap: "wrap", gap: 8 }}>
         <div>
           <h1 style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 700, color: C.navy, margin: "0 0 2px" }}>Resume editor</h1>
-          <p style={{ fontSize: 12, color: C.gray400, margin: 0 }}>Click any text to edit directly • Choose a layout, font and section order on the right</p>
+          <p className="ja-editor-sub" style={{ fontSize: 12, color: C.gray400, margin: 0 }}>Click any text to edit directly • Choose a layout, font and section order on the right</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
         <button onClick={() => downloadWord("resume-preview-print", `Resume-${data?.name || "JobMate"}`)}
