@@ -143,6 +143,26 @@
         .ja-stats { grid-template-columns: repeat(2, 1fr); }
         .ja-stats > *:first-child { grid-column: 1 / -1; }
         .ja-editor-split { grid-template-columns: 1fr; grid-template-rows: 1fr 340px; }
+
+        /* Page header: tighter on phones */
+        .ja-pagehead { padding: 12px 14px !important; }
+
+        /* Resume editor chrome: tighter, hide the long hint line */
+        .ja-editor-toolbar { padding: 10px 14px !important; }
+        .ja-editor-sub { display: none; }
+        .ja-versionbar { padding: 8px 14px !important; }
+
+        /* Resume editor: shrink desktop-sized paddings so the A4 preview
+           fits a phone screen without horizontal overflow */
+        .ja-editor-split > div:first-child { padding: 14px 10px !important; }
+        .resume-page--single { padding: 22px 16px !important; }
+        .resume-page--two-col { flex-direction: column; }
+        .resume-page--two-col .resume-sidebar { width: 100% !important; padding: 18px 14px !important; border-right: none !important; }
+        .resume-page--two-col .resume-main { padding: 18px 14px !important; }
+
+        /* Long single-word content (URLs, emails) must never force
+           horizontal scroll on a 375px screen */
+        .resume-page, .ja-card { overflow-wrap: anywhere; }
       }
 
       @media (prefers-reduced-motion: reduce) {
