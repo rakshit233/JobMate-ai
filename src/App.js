@@ -7,10 +7,10 @@ import SalaryCoach from "./SalaryCoach";
 import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
 import LoginPage from "./LoginPage";
-import { profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
+import { callClaude, profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
 import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText, salvageJsonText } from "./cvdoc";
 import {
-  supabase, signOut, getAuthHeader,
+  supabase, signOut,
   listResumeVersions, saveResumeVersion, deleteResumeVersion, findBestMatchingVersion,
   listTrackerEntries, saveTrackerEntry, deleteTrackerEntry,
   listProfiles, insertProfile, updateProfileFields, deleteProfileRow, setActiveProfileRow,
@@ -42,15 +42,10 @@ const FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
 // ── Shared UI ─────────────────────────────────────────────────────
-const callClaude = async (system, user) => {
-  const authHeader = await getAuthHeader();
-  const res = await fetch("/api/claude", {
-    method: "POST", headers: { "Content-Type": "application/json", ...authHeader },
-    body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1000, system, messages: [{ role: "user", content: user }] }),
-  });
-  const data = await res.json();
-  return data.content?.[0]?.text || "";
-};
+// AI calls go through matching.js's callClaude — the same one Quick Apply
+// uses (2000 max_tokens + real error handling). The old local copy here
+// capped output at 1000 tokens, which truncated structured-CV JSON mid-way
+// and silently swallowed API errors.
 
 const Spinner = () => <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "white", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />;
 
@@ -209,8 +204,8 @@ const CVTailor = ({ profile, profiles = [], activeProfileId, onSwitchProfile, on
         setLoading(true); setResult(""); setError("");
         try {
           const r = await callClaude(
-            `You are an expert CV writer for the German job market. Rewrite and tailor the candidate's CV to match the target job. ATS-optimised, strong action verbs, concise.\n${STRUCTURED_CV_INSTRUCTION}`,
-            `CANDIDATE CV:\n${cv}\n\nTARGET JOB:\n${jd}\n\nProduce the tailored CV as JSON.`
+            `You are an expert CV writer for the German job market. Create a clean, ATS-optimised CV tailored to the target job.\n${STRUCTURED_CV_INSTRUCTION}`,
+            `CANDIDATE:\n${cv}\n\nTARGET JOB:\n${jd}\n\nProduce the tailored CV as JSON.`
           );
           const structured = parseStructuredCV(r);
           if (structured) {
