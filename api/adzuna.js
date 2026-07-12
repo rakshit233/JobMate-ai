@@ -40,9 +40,12 @@ export default async function handler(req, res) {
     // leaves a useful number of results to show.
     results_per_page: "50",
     what: baseKeyword || englishSignal,
-    where: location || "Germany",
     sort_by: "relevance",
   });
+  // `where` is a place WITHIN Germany (the /jobs/de/ path already limits the
+  // country). Passing "Germany" as a place matches nothing — for an
+  // all-of-Germany search, omit the parameter entirely.
+  if (location.trim()) params.set("where", location.trim());
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${params.toString()}`;
 
