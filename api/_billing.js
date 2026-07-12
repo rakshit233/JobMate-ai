@@ -18,7 +18,7 @@ export const getAdminClient = () => {
   return client;
 };
 
-export const FREE_MONTHLY_LIMIT = 3;
+export const FREE_MONTHLY_LIMIT = 10;
 
 const currentMonth = () => new Date().toISOString().slice(0, 7); // 'YYYY-MM'
 
