@@ -58,6 +58,11 @@ const JobCard = ({ job, profile, onQuickApply, onSave }) => {
                 {job.contractType}
               </span>
             )}
+            {(job.workType === "remote" || job.workType === "hybrid") && (
+              <span style={{ fontSize: 11, padding: "2px 9px", borderRadius: 99, background: C.accentLight, color: C.accent, border: `0.5px solid ${C.accentBorder}`, fontWeight: 600 }}>
+                {job.workType === "remote" ? "🏠 Remote" : "🔀 Hybrid"}
+              </span>
+            )}
             {postedAgo && (
               <span style={{ fontSize: 11, color: C.gray400, marginLeft: 2 }}>{postedAgo}</span>
             )}
@@ -106,8 +111,9 @@ const JobCard = ({ job, profile, onQuickApply, onSave }) => {
   );
 };
 
-// German city suggestions for location autocomplete feel
-const CITIES = ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart", "Düsseldorf", "Remote"];
+// German city suggestions for location autocomplete feel.
+// "Remote" is deliberately not a city — it's covered by the work-type filter.
+const CITIES = ["Berlin", "Munich", "Hamburg", "Frankfurt", "Cologne", "Stuttgart", "Düsseldorf"];
 
 export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
   const [keyword, setKeyword] = useState("");
@@ -144,11 +150,12 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
       let results = data.jobs || [];
       const rawCount = results.length;
 
-      // Client-side English filter — if enabled, show only listings flagged english-friendly
-      // or where the title itself looks international (common in Berlin startup ecosystem)
+      // English filter — the API now detects the ad's actual language
+      // (German-stopword heuristic), so rely on its flag directly. The old
+      // title-word fallback ("Manager", "Consultant"…) let German-language
+      // ads through because German postings reuse English job titles.
       if (useEnglishFilter) {
-        const internationalTitlePattern = /\b(engineer|developer|manager|analyst|designer|scientist|consultant|lead|head|director|coordinator|specialist|advisor)\b/i;
-        results = results.filter(j => j.englishFriendly || internationalTitlePattern.test(j.title));
+        results = results.filter(j => j.englishFriendly);
         setFilteredOut(rawCount - results.length);
       }
 
@@ -256,11 +263,11 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
           </button>
         </div>
       )}
-      {!loading && searched && jobs.length === 0 && !error && (
+      {!loading && searched && jobs.length === 0 && !error && filteredOut === 0 && (
         <div style={{ textAlign: "center", padding: "40px 20px", color: C.gray400, fontSize: 14, background: C.white, borderRadius: 12, border: `0.5px solid ${C.gray200}` }}>
           <div style={{ fontSize: 28, marginBottom: 10 }}>🔍</div>
-          <div style={{ fontWeight: 600, color: C.gray600, marginBottom: 4 }}>No English-friendly jobs found</div>
-          <div style={{ fontSize: 13 }}>Try a different keyword, city, or uncheck the English filter</div>
+          <div style={{ fontWeight: 600, color: C.gray600, marginBottom: 4 }}>No jobs found</div>
+          <div style={{ fontSize: 13 }}>Try a different keyword, city, or work type</div>
         </div>
       )}
 
