@@ -17,6 +17,7 @@ import {
   getSubscription, getUsageThisMonth, consumeUsageCredit, openBillingPortal,
 } from "./supabase";
 import PricingModal from "./PricingModal";
+import TourGuide, { TOUR_KEY } from "./TourGuide";
 
 const C = {
   navy: "#0F1F3D",              // headings only — no longer a surface color
@@ -683,6 +684,15 @@ export default function App() {
     await deleteProfileRow(user.id, id);
     if (activeProfileId === id) await setActiveProfileRow(user.id, newActiveId);
   };
+  // ── Product tour — shown once to new users, restartable from the sidebar ──
+  const [tourOpen, setTourOpen] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    let seen = "1";
+    try { seen = localStorage.getItem(TOUR_KEY) || ""; } catch {}
+    if (!seen) setTourOpen(true);
+  }, [user?.id]);
+
   const [quickApplyCV, setQuickApplyCV] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [resumeVersions, setResumeVersions] = useState([]);
@@ -791,6 +801,7 @@ export default function App() {
       </div>
 
       <PricingModal open={pricingOpen} onClose={() => setPricingOpen(false)} reason={pricingReason} remaining={billing.remaining} />
+      {tourOpen && <TourGuide onNavigate={go} onClose={() => setTourOpen(false)} />}
       {upgradeToast && (
         <div className="ja-page" style={{ position:"fixed", top:16, right:16, zIndex:310, background:C.white, border:`1px solid ${C.gray200}`, borderRadius:12, padding:"12px 18px", boxShadow:"0 10px 30px rgba(15,31,61,0.18)", fontSize:13, color:C.navy, fontWeight:600 }}>
           🎉 Payment received — activating your Pro plan…
@@ -872,7 +883,10 @@ export default function App() {
                 </div>}
             <div style={{ flex:1, minWidth:0 }}>
               <div style={{ fontSize:12, color:C.gray800, fontWeight:500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{activeProfile?.name || user.user_metadata?.full_name || user.email}</div>
-              <button onClick={signOut} style={{ fontSize:10, color:C.gray400, background:"none", border:"none", cursor:"pointer", padding:0, fontFamily:FONT }}>Sign out</button>
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={signOut} style={{ fontSize:10, color:C.gray400, background:"none", border:"none", cursor:"pointer", padding:0, fontFamily:FONT }}>Sign out</button>
+                <button onClick={() => { setNavOpen(false); setTourOpen(true); }} style={{ fontSize:10, color:C.accent, background:"none", border:"none", cursor:"pointer", padding:0, fontFamily:FONT }}>✨ Take the tour</button>
+              </div>
             </div>
           </div>
         </div>
