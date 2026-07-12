@@ -10,7 +10,7 @@ const C = {
 const FONT = "'Inter', system-ui, sans-serif";
 const DISPLAY = "'Plus Jakarta Sans', 'Inter', sans-serif";
 
-const FREE_FEATURES = ["3 AI generations / month", "Quick Apply, CV tailor, Cover letter & Resume AI Coach", "Unlimited Find Jobs search", "Unlimited profiles & job tracker"];
+const FREE_FEATURES = ["10 AI generations / month", "Quick Apply, CV tailor, Cover letter & Resume AI Coach", "Unlimited Find Jobs search", "Unlimited profiles & job tracker"];
 const PRO_FEATURES = ["Unlimited AI generations", "Everything in Free", "Priority support", "Cancel anytime"];
 
 const Check = ({ color }) => (
@@ -42,7 +42,7 @@ export default function PricingModal({ open, onClose, reason = "manual", remaini
               {reason === "limit" ? "Monthly free limit reached" : "Upgrade"}
             </div>
             <h2 style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 700, color: C.navy, margin: 0 }}>
-              {reason === "limit" ? "You've used all 3 free generations this month" : "Go unlimited with JobMate Pro"}
+              {reason === "limit" ? "You've used all 10 free generations this month" : "Go unlimited with JobMate Pro"}
             </h2>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: C.gray400, padding: 4 }}>✕</button>

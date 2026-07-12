@@ -550,7 +550,7 @@ export default function App() {
   const activeProfile = profiles.find(p => p.id === activeProfileId)?.data || EMPTY_PROFILE;
 
   // ── Billing / paywall ──────────────────────────────────────────
-  const [billing, setBilling] = useState({ plan: "free", remaining: 3, limit: 3 }); // optimistic default
+  const [billing, setBilling] = useState({ plan: "free", remaining: 10, limit: 10 }); // optimistic default
   const [pricingOpen, setPricingOpen] = useState(false);
   const [pricingReason, setPricingReason] = useState("manual");
   const [upgradeToast, setUpgradeToast] = useState(false);
@@ -560,7 +560,7 @@ export default function App() {
     if (!id) return;
     const [sub, used] = await Promise.all([getSubscription(id), getUsageThisMonth(id)]);
     const plan = sub?.plan === "pro" && (sub?.status === "active" || sub?.status === "trialing") ? "pro" : "free";
-    setBilling({ plan, remaining: plan === "pro" ? null : Math.max(0, 3 - used), limit: 3, used });
+    setBilling({ plan, remaining: plan === "pro" ? null : Math.max(0, 10 - used), limit: 10, used });
   };
 
   useEffect(() => { if (user) refreshBilling(user.id); }, [user?.id]);
@@ -861,7 +861,7 @@ export default function App() {
           ) : (
             <button onClick={() => { setPricingReason("manual"); setPricingOpen(true); }}
               style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", borderRadius:10, border:`0.5px solid ${C.gray200}`, background:C.gray50, cursor:"pointer", fontFamily:FONT }}>
-              <span style={{ fontSize:12, fontWeight:600, color:C.gray600 }}>{billing.remaining ?? 3}/{billing.limit ?? 3} free left</span>
+              <span style={{ fontSize:12, fontWeight:600, color:C.gray600 }}>{billing.remaining ?? 10}/{billing.limit ?? 10} free left</span>
               <span style={{ fontSize:10.5, fontWeight:700, color:C.accent }}>Upgrade →</span>
             </button>
           )}
