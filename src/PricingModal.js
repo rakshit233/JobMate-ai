@@ -68,7 +68,11 @@ export default function PricingModal({ open, onClose, reason = "manual", remaini
           <div style={{ border: `1.5px solid ${C.accent}`, borderRadius: 14, padding: "18px 18px 20px", position: "relative", background: "linear-gradient(180deg, rgba(37,99,235,0.04), transparent)" }}>
             <div style={{ position: "absolute", top: -11, right: 16, fontSize: 10.5, fontWeight: 700, color: "#fff", background: `linear-gradient(120deg, ${C.accent}, ${C.cyan})`, padding: "3px 10px", borderRadius: 99 }}>RECOMMENDED</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.accent }}>Pro</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: C.navy, fontFamily: DISPLAY, margin: "4px 0 14px" }}>€12<span style={{ fontSize: 13, fontWeight: 500, color: C.gray400 }}>/mo</span></div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap", margin: "4px 0 14px" }}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: C.gray400, textDecoration: "line-through" }}>€36</span>
+              <span style={{ fontSize: 26, fontWeight: 800, color: C.navy, fontFamily: DISPLAY }}>€18<span style={{ fontSize: 13, fontWeight: 500, color: C.gray400 }}>/mo</span></span>
+              <span style={{ fontSize: 10.5, fontWeight: 700, color: C.green, background: C.greenLight, padding: "2px 8px", borderRadius: 99 }}>50% OFF</span>
+            </div>
             {PRO_FEATURES.map(f => (
               <div key={f} style={{ display: "flex", gap: 8, marginBottom: 9, fontSize: 12.5, color: C.gray800, fontWeight: 500, lineHeight: 1.4 }}>
                 <Check color={C.accent} />{f}
@@ -80,7 +84,7 @@ export default function PricingModal({ open, onClose, reason = "manual", remaini
         <div style={{ padding: "0 28px 28px" }}>
           <button onClick={upgrade} disabled={loading} className="ja-cta"
             style={{ width: "100%", padding: 14, borderRadius: 12, background: C.accent, color: "#fff", border: "none", fontSize: 15, fontWeight: 700, cursor: loading ? "default" : "pointer", fontFamily: DISPLAY, opacity: loading ? 0.75 : 1 }}>
-            {loading ? "Redirecting to checkout…" : "Upgrade to Pro — €12/month"}
+            {loading ? "Redirecting to checkout…" : "Upgrade to Pro — €18/month (50% off €36)"}
           </button>
           <div style={{ textAlign: "center", fontSize: 11.5, color: C.gray400, marginTop: 10 }}>
             Secure checkout via Stripe · Cancel anytime · VAT included where applicable
