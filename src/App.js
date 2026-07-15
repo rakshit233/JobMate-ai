@@ -297,9 +297,9 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
       <div className="ja-grid2" style={{ gap: 16, marginBottom: 14 }}>
         <Card>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div><Label>Your full name</Label><Input value={name} onChange={setName} placeholder="e.g. Rakshit Tiwari" /></div>
-            <div><Label>Role applying for</Label><Input value={role} onChange={setRole} placeholder="e.g. Product Manager" /></div>
-            <div><Label>Company name</Label><Input value={company} onChange={setCompany} placeholder="e.g. Zalando" /></div>
+            <div><Label>Your full name *</Label><Input value={name} onChange={setName} placeholder="e.g. Rakshit Tiwari" /></div>
+            <div><Label>Role applying for *</Label><Input value={role} onChange={setRole} placeholder="e.g. Product Manager" /></div>
+            <div><Label>Company name *</Label><Input value={company} onChange={setCompany} placeholder="e.g. Zalando" /></div>
             <div>
               <Label>Tone</Label>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -314,7 +314,7 @@ const CoverLetter = ({ profile, checkAndConsumeCredit }) => {
         </Card>
         <Card>
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div><Label>Your key background</Label><TextArea value={bg} onChange={setBg} placeholder="e.g. 3 years in project management, MBA Berlin..." rows={5} /></div>
+            <div><Label>Your key background *</Label><TextArea value={bg} onChange={setBg} placeholder="e.g. 3 years in project management, MBA Berlin..." rows={5} /></div>
             <div><Label>Job description (optional)</Label><TextArea value={jd} onChange={setJd} placeholder="Paste for a more tailored letter..." rows={4} /></div>
           </div>
         </Card>
@@ -351,7 +351,10 @@ Output only the letter's paragraph text, nothing else.`,
         return (
           <Card style={{ marginTop: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>✨ Cover letter — ready to use</div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.accent, letterSpacing: "0.08em", textTransform: "uppercase" }}>✨ Cover letter — ready to use</div>
+                <div style={{ fontSize: 11, color: C.gray400, marginTop: 2 }}>Click any paragraph in the letter to edit it directly</div>
+              </div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button onClick={() => navigator.clipboard.writeText(result)}
                   style={{ padding: "6px 13px", borderRadius: 6, border: `0.5px solid ${C.gray200}`, background: C.white, fontSize: 12, cursor: "pointer", color: C.gray600, fontFamily: FONT }}>
@@ -374,6 +377,8 @@ Output only the letter's paragraph text, nothing else.`,
                 company={company}
                 contact={contactLine}
                 body={result}
+                editable
+                onBodyChange={setResult}
               />
             </div>
           </Card>

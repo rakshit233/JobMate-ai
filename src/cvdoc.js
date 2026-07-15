@@ -151,11 +151,29 @@ const CoverLetterDocument = ({ text }) => {
 // avoids ever trusting AI-generated text to format a header correctly, and
 // matches a standard modern cover-letter layout: bold name, role subtitle,
 // contact block, divider, recipient + date row, salutation, paragraphs, sign-off.
-const CoverLetterTemplate = ({ name, role, contact, hiringManager = "Hiring Manager", company, companyAddress, date, body, signoff = "Warmest regards," }) => {
+// When `editable` is true, the letter's paragraphs (and greeting/sign-off
+// names) can be clicked and edited in place; `onBodyChange` receives the
+// updated body text so Copy-to-clipboard stays in sync. Word/PDF exports
+// read the live DOM, so they pick up in-place edits automatically.
+const CoverLetterTemplate = ({ name, role, contact, hiringManager = "Hiring Manager", company, companyAddress, date, body, signoff = "Warmest regards,", editable = false, onBodyChange }) => {
   const paragraphs = (body || "")
     .split(/\n\s*\n/)
     .map(p => p.replace(/\n/g, " ").trim())
     .filter(Boolean);
+
+  const editProps = (i) => editable ? {
+    contentEditable: true,
+    suppressContentEditableWarning: true,
+    spellCheck: false,
+    onFocus: (e) => { e.currentTarget.style.background = "#EFF6FF"; },
+    onBlur: (e) => {
+      e.currentTarget.style.background = "transparent";
+      const updated = [...paragraphs];
+      updated[i] = e.currentTarget.innerText.replace(/\n/g, " ").trim();
+      onBodyChange?.(updated.filter(Boolean).join("\n\n"));
+    },
+  } : {};
+  const editStyle = editable ? { outline: "none", borderRadius: 4, cursor: "text" } : {};
   const contactLines = (contact || "").split("|").map(s => s.trim()).filter(Boolean);
   const today = date || new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
@@ -184,7 +202,7 @@ const CoverLetterTemplate = ({ name, role, contact, hiringManager = "Hiring Mana
       <div style={{ fontWeight: 600, marginBottom: 14 }}>Dear {hiringManager},</div>
 
       {paragraphs.map((p, i) => (
-        <p key={i} style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.75 }}>{p}</p>
+        <p key={i} {...editProps(i)} style={{ margin: "0 0 14px", fontSize: 12.5, lineHeight: 1.75, ...editStyle }}>{p}</p>
       ))}
 
       <div style={{ marginTop: 10 }}>
