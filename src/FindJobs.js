@@ -66,6 +66,9 @@ const JobCard = ({ job, profile, onQuickApply, onSave }) => {
             {postedAgo && (
               <span style={{ fontSize: 11, color: C.gray400, marginLeft: 2 }}>{postedAgo}</span>
             )}
+            {job.source && (
+              <span style={{ fontSize: 10, color: C.gray400 }}>via {job.source}</span>
+            )}
           </div>
         </div>
 
@@ -193,7 +196,7 @@ export default function FindJobs({ profile, onQuickApply, onSaveToTracker }) {
 
         {/* Context banner */}
         <div style={{ background: C.blueLight, border: `0.5px solid ${C.blueBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12.5, color: C.blue, display: "flex", alignItems: "center", gap: 7 }}>
-          🇩🇪 Searching English-friendly jobs across Germany — powered by Adzuna
+          🇩🇪 Searching English-friendly jobs across Germany — powered by Adzuna & Arbeitnow
         </div>
 
         <div className="ja-search-grid" style={{ marginBottom: 12 }}>
