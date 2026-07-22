@@ -6,6 +6,7 @@ import InterviewPrep from "./InterviewPrep";
 import SalaryCoach from "./SalaryCoach";
 import LinkedInOptimizer from "./LinkedInOptimizer";
 import FindJobs from "./FindJobs";
+import ATSScan from "./ATSScan";
 import LoginPage from "./LoginPage";
 import { callClaude, profileToCVText, resumeDataToCVText, friendlyError, safeLink } from "./matching";
 import { CVDocument, CoverLetterTemplate, StaticResume, printDoc, downloadWord, cleanCVText, stripMarkdown, splitCVHeader, STRUCTURED_CV_INSTRUCTION, parseStructuredCV, structuredCVToText, salvageJsonText } from "./cvdoc";
@@ -522,6 +523,7 @@ const PAGES = {
   tracker:   { title:"Job tracker",      sub:"Track every application in one place — status, notes, and follow-ups." },
   apply:     { title:"Quick apply",      sub:"Paste a job URL or description — get a tailored CV, cover letter and match score instantly." },
   cv:        { title:"CV tailor",        sub:"Paste your CV and a job description — AI rewrites it to match the role and pass ATS screening." },
+  ats:       { title:"ATS scan",         sub:"Check how applicant tracking systems read your CV — score, missing keywords, and concrete fixes." },
   cover:     { title:"Cover letter",     sub:"Get a personalised, Germany-ready cover letter in seconds." },
   resume:    { title:"Resume editor",    sub:"Live editable resume with AI coach panel — click any text to edit." },
   findjobs:  { title:"Find jobs",        sub:"Search live job listings from Adzuna, scored against your saved profile." },
@@ -850,6 +852,7 @@ export default function App() {
             <NavItem icon="ti-bolt" label="Quick apply" id="apply" active={active==="apply"} onClick={go} />
             <NavItem icon="ti-search" label="Find jobs" id="findjobs" active={active==="findjobs"} onClick={go} />
             <NavItem icon="ti-file-text" label="CV tailor" id="cv" active={active==="cv"} onClick={go} />
+            <NavItem icon="ti-shield-check" label="ATS scan" id="ats" active={active==="ats"} onClick={go} />
             <NavItem icon="ti-mail" label="Cover letter" id="cover" active={active==="cover"} onClick={go} />
             <NavItem icon="ti-edit" label="Resume editor" id="resume" active={active==="resume"} onClick={go} />
           </NavSection>
@@ -936,6 +939,7 @@ export default function App() {
           <div className="ja-page" style={{ display: active === "cover" ? "block" : "none" }}>
             <CoverLetter profile={activeProfile} checkAndConsumeCredit={checkAndConsumeCredit} />
           </div>
+          {active === "ats" && <div key="ats" className="ja-page"><ATSScan profile={activeProfile} profiles={profiles} activeProfileId={activeProfileId} onSwitchProfile={switchProfile} checkAndConsumeCredit={checkAndConsumeCredit} /></div>}
           {active === "interview" && <div key="interview" className="ja-page"><InterviewPrep profile={activeProfile} /></div>}
           {active === "salary"    && <div key="salary" className="ja-page"><SalaryCoach profile={activeProfile} /></div>}
           {active === "linkedin"  && <div key="linkedin" className="ja-page"><LinkedInOptimizer profile={activeProfile} /></div>}
