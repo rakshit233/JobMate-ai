@@ -98,9 +98,13 @@ const Editable = ({ value, onChange, tag: Tag = "span", style: s, multiline }) =
 
 // ── Section renderers (shared across templates) ─────────────────
 const SectionHeading = ({ title, style, sectionStyle, accentColor }) => {
+  // breakAfter:"avoid" stops a heading from being orphaned at the bottom of a
+  // printed page while its content flows to the next — no effect on the
+  // scrollable on-screen editor, only engages under print pagination.
+  const keepWithNext = { breakAfter: "avoid", pageBreakAfter: "avoid" };
   if (sectionStyle === "bar") {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, marginBottom: 6, ...style }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, marginBottom: 6, ...keepWithNext, ...style }}>
         <div style={{ width: 4, height: 14, background: accentColor, borderRadius: 2 }} />
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: accentColor, textTransform: "uppercase" }}>{title}</span>
       </div>
@@ -108,14 +112,14 @@ const SectionHeading = ({ title, style, sectionStyle, accentColor }) => {
   }
   if (sectionStyle === "spacing") {
     return (
-      <div style={{ marginTop: 20, marginBottom: 8, ...style }}>
+      <div style={{ marginTop: 20, marginBottom: 8, ...keepWithNext, ...style }}>
         <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.14em", color: accentColor, textTransform: "uppercase" }}>{title}</span>
       </div>
     );
   }
   // underline (default/classic/compact)
   return (
-    <div style={{ borderBottom: `2px solid ${accentColor}`, marginBottom: 6, marginTop: 14, paddingBottom: 2, ...style }}>
+    <div style={{ borderBottom: `2px solid ${accentColor}`, marginBottom: 6, marginTop: 14, paddingBottom: 2, ...keepWithNext, ...style }}>
       <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", color: accentColor, textTransform: "uppercase" }}>{title}</span>
     </div>
   );
@@ -138,7 +142,7 @@ const EducationSection = ({ data, setData, accentColor, sectionStyle }) => {
     <div>
       <SectionHeading title="Education" sectionStyle={sectionStyle} accentColor={accentColor} />
       {data.education.map((edu, i) => (
-        <div key={i} style={{ marginBottom: 6 }}>
+        <div key={i} style={{ marginBottom: 6, breakInside: "avoid", pageBreakInside: "avoid" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 12.5, flex: 1, minWidth: 0 }}><Editable value={edu.school} onChange={v => updateEdu(i, "school", v)} /></span>
             <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}><Editable value={edu.location} onChange={v => updateEdu(i, "location", v)} /></span>
@@ -160,7 +164,7 @@ const ExperienceSection = ({ data, setData, accentColor, sectionStyle }) => {
     <div>
       <SectionHeading title="Work Experience" sectionStyle={sectionStyle} accentColor={accentColor} />
       {data.experience.map((exp, i) => (
-        <div key={i} style={{ marginBottom: 12 }}>
+        <div key={i} style={{ marginBottom: 12, breakInside: "avoid", pageBreakInside: "avoid" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
             <span style={{ fontWeight: 700, fontSize: 13, flex: 1, minWidth: 0 }}><Editable value={exp.company} onChange={v => updateExp(i, "company", v)} /></span>
             <span style={{ fontSize: 11.5, color: "#475569", flexShrink: 0, whiteSpace: "nowrap" }}><Editable value={exp.location} onChange={v => updateExp(i, "location", v)} /></span>
@@ -659,8 +663,14 @@ export default function ResumeEditor({ profile, profiles = [], activeProfileId, 
           win.document.write(`<html><head><title>Resume</title><style>
             /* @page margin repeats on EVERY physical page automatically — this
                is what gives page 2+ the same breathing room as page 1, instead
-               of content starting flush against the paper edge. */
-            @page { margin: 20mm 18mm; size: A4; }
+               of content starting flush against the paper edge. Vertical margin
+               trimmed to 14mm (from 20mm) to reclaim ~12mm of usable height so
+               borderline resumes fit on one page instead of spilling a couple
+               of lines onto page 2. */
+            @page { margin: 14mm 18mm; size: A4; }
+            /* Belt-and-suspenders for the break rules carried inline on the
+               resume sections/entries, in case a browser ignores the inline form. */
+            h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
             @media print { .no-print { display: none !important; } [contenteditable] { background: transparent !important; border: none !important; } }
             html, body { margin: 0; padding: 0; height: auto !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; max-width: 210mm; }
             * { box-sizing: border-box; }
